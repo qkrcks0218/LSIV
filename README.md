@@ -21,7 +21,7 @@ The package requires R 4.0.0 or later and a C++17 compiler for source installati
 
 ## Methodology
 
-Consider independent observations $O=(Y,A,Z,X)$, where $A\in\{0,1\}$ is a binary treatment indicator, $Z\in\{0,1\}$ is a binary instrumental variable (IV), $X$ is a vector of pretreatment covariates, and $Y$ is the observed outcome. Let $Y^{(a)}$ be the potential outcome under treatment $a$. The primary target is the **average treatment effect on the treated (ATT)**,
+Consider independent observations $O=(Y,A,Z,X)$, where $`A\in\{0,1\}`$ is a binary treatment indicator, $`Z\in\{0,1\}`$ is a binary instrumental variable (IV), $X$ is a vector of pretreatment covariates, and $Y$ is the observed outcome. Let $Y^{(a)}$ be the potential outcome under treatment $a$. The primary target is the **average treatment effect on the treated (ATT)**,
 
 $$
 \tau=E\left[Y^{(1)}-Y^{(0)}\mid A=1\right].
@@ -57,9 +57,9 @@ Thus, the instrument shifts the treatment log odds by an amount that can depend 
 
 The method uses nuisance functions defined from the observed data law,
 
-$$
+```math
 \theta=\left\{f(Z\mid X),\ f(A\mid Z,X),\ f(Y\mid A=0,Z,X)\right\}.
-$$
+```
 
 Under the identifying assumptions, these functions determine $\alpha$ and $\beta$ through a normalized fixed-point equation. The identification and convergence results require the compatibility and regularity conditions stated in Park and Tchetgen Tchetgen (2026).
 
@@ -91,9 +91,9 @@ $$
 
 and write $\mu_\omega(z,x)=E[\omega(Y^{(0)},Z,X)\mid A=1,Z=z,X=x]$. The function $\omega$ solves
 
-$$
+```math
 E\left[\{Y^{(0)}-\mu(Z,X)\}-\{\omega(Y^{(0)},Z,X)-\mu_\omega(Z,X)\}\mid A=1,Y^{(0)},X\right]=0.
-$$
+```
 
 For a binary instrument, this integral equation has a unique solution under the conditions in the paper and admits a closed-form representation. Define
 
@@ -113,9 +113,9 @@ $$
 
 For one cross-fitting repetition, the estimator is
 
-$$
+```math
 \widehat\tau=\frac{\mathbb{P}_N\{AY-\widehat\nu(O)\}}{\mathbb{P}_N(A)},
-$$
+```
 
 where $\mathbb{P}_N$ denotes the empirical average and each observation's nuisance estimates are fitted using the other folds. Under the paper's admissibility, boundedness, relevance, and nuisance estimation rate conditions, the estimator is asymptotically normal and attains the semiparametric efficiency bound. Its influence function supplies standard errors and Wald confidence intervals.
 
@@ -143,7 +143,7 @@ $$
 \tau_q=F_1^{-1}(q)-F_0^{-1}(q),\qquad F_a(t)=\Pr(Y^{(a)}\leq t\mid A=1),
 $$
 
-where $F_a^{-1}(q)=\inf\{t\in\mathbb{R}\mid F_a(t)\geq q\}$. Include `"QTT"` in `estimand` and select quantile indices with `QTT_quantile`.
+where $`F_a^{-1}(q)=\inf\{t\in\mathbb{R}\mid F_a(t)\geq q\}`$. Include `"QTT"` in `estimand` and select quantile indices with `QTT_quantile`.
 
 The procedure combines a binomial order-statistic confidence interval for the observed treated quantile with counterfactual CDF tests, following the confidence-set maximization principle of Berger and Boos (1994) and the counterfactual moment approach of Lee et al. (2025). For continuous outcomes, it tests $F_0(t)=q$. For discrete outcomes, it tests both necessary restrictions $F_0(t-)\leq q\leq F_0(t)$, allowing for a jump across $q$. Accepted counterfactual quantiles are projected through the treated-quantile interval to construct a QTT interval.
 
