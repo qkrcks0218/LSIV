@@ -248,23 +248,16 @@ confint(SIV.Result)
 summary(SIV.Result)
 
 ###########################################
-# Estimated nuisance functions and diagnostics
-###########################################
-
-SIV.Result$nuisance$baseline_density$weights
-SIV.Result$nuisance$density_ratio_ensemble$weights
-SIV.Result$nuisance$density_ratio_ensemble$selected_bandwidth
-SIV.Result$diagnostics
-SIV.Result$converged
-
-###########################################
 # QTT and falsification results
 ###########################################
 
 SIV.Result$qtt$estimate
 SIV.Result$qtt$ci
 SIV.Result$falsification$p_value
+# [1] 0.935
+
 SIV.Result$falsification$reject
+# [1] FALSE
 ```
 
 The continuous example has $Y^{(0)}\in[-1,1]$ and $Y^{(1)}=Y^{(0)}+1$, so the true ATT and QTTs are all one. The counterfactual integration grid uses its known support, while `QTT_bounds = c(-1, 2)` supplies bounds containing both potential outcomes. With an unknown support, omit `y_grid` and `y_ref` to construct the grid and select the reference value automatically.
