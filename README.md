@@ -284,7 +284,7 @@ siv_se(SIV.Result.Binary)
 confint(SIV.Result.Binary)
 ```
 
-For a discrete outcome with known support, supply the full support to QTT inversion. For example, an outcome measuring weeks worked with potential outcomes bounded between 0 and 52 uses `QTT_support = 0:52` and `QTT_bounds = c(0, 52)`. These arguments also allow discrete QTT inversion when the nuisance density model is fitted with `y_type = "continuous"`.
+For a discrete outcome with known support, supply the full support to QTT inversion.  
 
 ### Additional Estimators and Replication Files
 

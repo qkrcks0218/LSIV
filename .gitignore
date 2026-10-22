@@ -4,3 +4,4 @@
 /src/*.a
 /src/*.dylib
 /src/symbols.rds
+/ReplicationFiles/Data/Ratio/
