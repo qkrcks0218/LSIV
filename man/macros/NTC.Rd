@@ -1,0 +1,1 @@
+\newcommand{\NTC}{#1}

@@ -1,0 +1,43 @@
+Package: SIV
+Type: Package
+Title: Separable Instrumental Variable Methods for Treatment Effects and
+        Nonignorable Missing Data
+Version: 0.1.1
+Authors@R: c(
+    person("Chan", "Park", role = c("aut", "cre"),
+           email = "parkchan@illinois.edu"),
+    person("Eric J.", "Tchetgen Tchetgen", role = "aut"))
+Description: Implements the nonparametric separable instrumental variable (SIV)
+    estimator of average and quantile treatment effects on the treated (ATT and
+    QTT), together with an influence-function falsification test, under a
+    logit-separable binary treatment choice model (Park and Tchetgen Tchetgen),
+    together with faithful implementations of the competing estimators of
+    Liu et al. (2021) <arXiv:1506.08149>, Sun et al. (2021)
+    <doi:10.5705/ss.202016.0324> and Sun, Miao and Wickramarachchi (2025)
+    <doi:10.5705/ss.202023.0383>.  All competing estimators are M-estimators
+    and are supplied with their stacked-estimating-equation ("sandwich")
+    covariance estimators.  The proposed estimator supports both binary and
+    continuous outcomes through an explicit 'y_type' argument.  For a continuous
+    outcome, the default baseline density combines cross-fitted 'np' and
+    'gss' conditional density estimates using inner-validation MSPE weights,
+    where MSPE is mean squared prediction error (also known as ISE). The default
+    density ratio combines KLIEP and uLSIF estimates with separately
+    cross-validated outcome and standardised-covariate bandwidths, followed by
+    inner-validation MSPE ensemble weights. Other baseline estimators and
+    median-heuristic ratio bandwidths remain available as options. An
+    efficient-influence-function estimator of
+    the local average treatment
+    effect ('SIV_LATE') is provided as a reference point under the standard
+    instrumental-variable assumptions.  Instrument, treatment, and
+    discrete-outcome nuisance functions are estimated by a Super Learner
+    ensemble ('MySL').
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 4.0.0)
+Imports: stats, splines, utils, numDeriv, Rcpp, np, gss, densityratio,
+        testthat (>= 3.0.0), knitr, SuperLearner, caret, nnet, glmnet, earth,
+        gam, gbm, xgboost, polspline, ranger, RSNNS
+LinkingTo: Rcpp, RcppArmadillo
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3
+NeedsCompilation: yes

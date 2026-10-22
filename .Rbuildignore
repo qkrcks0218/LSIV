@@ -1,0 +1,5 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^src/.*\.(o|so|dll|a|dylib)$
+^src/symbols\.rds$
