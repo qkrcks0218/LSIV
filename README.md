@@ -48,7 +48,7 @@ where $y_R$ is a reference outcome value in the common support. Here, $\beta(z,x
 Equivalently,
 
 $$
-\operatorname{logit}\Pr(A=1\mid Y^{(0)}=y,Z=z,X=x)=\log\alpha(y,x)+\log\beta(z,x).
+logit \Pr(A=1\mid Y^{(0)}=y,Z=z,X=x)=\log\alpha(y,x)+\log\beta(z,x).
 $$
 
 Thus, the instrument shifts the treatment log odds by an amount that can depend on $X$ but is constant across values of $Y^{(0)}$. The function $\alpha$ measures the degree of unmeasured confounding on the odds ratio scale and is shared across instrument levels. Both components are estimated without imposing a finite-dimensional model for their functional forms.
@@ -108,7 +108,7 @@ For a binary instrument, this integral equation has a unique solution under the 
 The **efficient influence function (EIF)** for the ATT is
 
 $$
-\operatorname{IF}(O)=\frac{AY-\nu(O)-A\tau}{\Pr(A=1)}.
+IF(O)=\frac{AY-\nu(O)-A\tau}{\Pr(A=1)}.
 $$
 
 For one cross-fitting repetition, the estimator is
