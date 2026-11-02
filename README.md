@@ -299,7 +299,42 @@ The package also provides comparison estimators.
 
 `SIV_LATE()` targets the effect among compliers. Comparisons with the ATT require interpreting the difference in target populations and assumptions.
 
-The [simulation scripts](ReplicationFiles/Simulation) and [Job Corps analysis](ReplicationFiles/Data) are included in `ReplicationFiles/`. The application directory contains `JC.csv` and scripts for fitting the methods, summarizing density ratios, and aggregating results. Batch-fitting scripts take a batch number as a command-line argument and read supporting files from their own directory.
+The [simulation scripts](ReplicationFiles/Simulation) and [Job Corps analysis](ReplicationFiles/Data) are included in `ReplicationFiles/`. The application directory contains `JC.csv` and scripts for fitting the methods, summarizing density ratios, and aggregating results. Run scripts from their respective replication directories. Batch-fitting scripts take a batch number as a command-line argument.
+
+#### One-sided noncompliance simulation
+
+The simulation directory also includes a design with $A=0$ whenever $Z=0$ and $\Pr(Z=1\mid X)=1/2$. The ATT and LATE coincide under this design. The comparison covers continuous and binary outcomes at sample sizes 1,000, 2,000, and 4,000, and includes `SIV()`, the one-sided ATT estimator implemented in the simulation script (result label `SIV_one_sided`), and `SIV_LATE()`.
+
+| Script | Role |
+|---|---|
+| [00_1snp_common.R](ReplicationFiles/Simulation/00_1snp_common.R) | One-sided data generation, reference values, and shared helpers |
+| [05_1snp_compare_methods.R](ReplicationFiles/Simulation/05_1snp_compare_methods.R) | Batch comparison of the three estimators |
+| [06_1snp_summary_compare_methods.R](ReplicationFiles/Simulation/06_1snp_summary_compare_methods.R) | Summary statistics and the comparison figure |
+
+The batch grid combines the three sample sizes, two outcome types, and seeds 1 through 1,010, giving batch IDs 1 through 6,060. Run a batch from the simulation directory, for example,
+
+```sh
+cd ReplicationFiles/Simulation
+Rscript 05_1snp_compare_methods.R 1
+```
+
+Each batch writes a `Result_1snp_*.csv` file, such as `Result_1snp_N1000_Typec_B00001.csv`. After completing the desired batches, combine their CSV files from the same directory using
+
+```r
+files <- list.files(
+  pattern = "^Result_1snp_N[0-9]+_Type[cb]_B[0-9]+\\.csv$"
+)
+results <- do.call(rbind, lapply(files, read.csv))
+write.csv(results, "Merge_Sim_1snp_F.csv", row.names = FALSE)
+```
+
+Then generate the summary and figure with
+
+```sh
+Rscript 06_1snp_summary_compare_methods.R
+```
+
+The summary script reads [Merge_Sim_1snp_F.csv](ReplicationFiles/Simulation/Merge_Sim_1snp_F.csv) and writes [compare_methods_1snp_summary.csv](ReplicationFiles/Simulation/compare_methods_1snp_summary.csv) and [Main_Sim_1snp.png](ReplicationFiles/Simulation/Main_Sim_1snp.png). The merged results are already included, so the summary and figure can also be regenerated directly without rerunning the batch simulations.
 
 ## References
 
