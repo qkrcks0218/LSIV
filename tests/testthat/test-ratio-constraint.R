@@ -10,14 +10,16 @@ test_that("ratio projection preserves normalization and the IV bound together", 
   clipped <- pmin(nu$fY_z1 / nu$fY_z0, 1.5)
   renormalized <- clipped / sum(clipped * nu$fY_z0)
   expect_gt(max(renormalized), 1.5)
-  expect_equal(adjusted$RY, matrix(c(.5, 1.5), 1L), tolerance = 1e-10)
-  expect_equal(adjusted$fY_z1, matrix(c(.25, .75), 1L), tolerance = 1e-10)
+  expect_equal(adjusted$RY, matrix(c(.500000005, 1.499999995), 1L),
+               tolerance = 1e-10)
+  expect_equal(adjusted$fY_z1, matrix(c(.2500000025, .7499999975), 1L),
+               tolerance = 1e-10)
   expect_equal(rowSums(adjusted$fY_z1), 1, tolerance = 1e-12)
-  expect_lte(max(adjusted$RY), 1.5)
+  expect_lt(max(adjusted$RY), 1.5)
   expect_identical(nu, raw)
   expect_equal(fit$diagnostics$projected_units, 1)
   expect_lte(fit$diagnostics$max_normalization_error, 1e-12)
-  expect_gte(fit$diagnostics$min_falsification_slack, -1e-12)
+  expect_gt(fit$diagnostics$min_falsification_slack, 0)
 })
 
 test_that("ratio projection handles both instrument orderings and direct ratios", {
@@ -28,7 +30,7 @@ test_that("ratio projection handles both instrument orderings and direct ratios"
   out <- fit$nuisance
   ordered <- out$RY
   ordered[2L, ] <- 1 / ordered[2L, ]
-  expect_equal(ordered, matrix(c(.5, 1.5), 2L, 2L, byrow = TRUE),
+  expect_equal(ordered, matrix(c(.500000005, 1.499999995), 2L, 2L, byrow = TRUE),
                tolerance = 1e-10)
   expect_equal(rowSums(out$fY_z0), c(1, 1), tolerance = 1e-12)
   expect_equal(rowSums(out$fY_z1), c(1, 1), tolerance = 1e-12)
@@ -60,17 +62,18 @@ test_that("continuous-grid weights and numerical ratio bounds are respected", {
   d <- out$pA1_z0 - out$pA1_z1
   implication <- ((1 - out$pA1_z1) * out$fY_z1 -
                     (1 - out$pA1_z0) * out$fY_z0) / d
-  expect_gte(min(implication), -1e-12)
+  expect_gt(min(implication), 0)
 })
 
-test_that("compatible oracle inputs are unchanged and degenerate inputs fail clearly", {
+test_that("compatible oracle inputs receive only a tiny interior adjustment", {
   set.seed(880)
   d <- test_dgp(50, "binary")
   nu <- test_oracle_nuisance(d$X, c(0, 1), c(1, 1), "binary")
   fit <- SIV:::siv_constrain_density_ratio(nu, c(1, 1),
                                           density_floor = 0, dr_floor = 0)
-  expect_equal(fit$nuisance$fY_z0, nu$fY_z0, tolerance = 1e-12)
-  expect_equal(fit$nuisance$fY_z1, nu$fY_z1, tolerance = 1e-12)
+  expect_lte(max(abs(fit$nuisance$fY_z0 - nu$fY_z0)), 1e-8 + 1e-14)
+  expect_lte(max(abs(fit$nuisance$fY_z1 - nu$fY_z1)), 1e-8 + 1e-14)
+  expect_equal(fit$diagnostics$interior_epsilon, 1e-8)
   expect_equal(fit$diagnostics$projected_units, 0)
   expect_error(SIV:::siv_constrain_density_ratio(nu, c(1, 1), dr_floor = 1),
                "dr_floor")
@@ -99,7 +102,7 @@ test_that("large guarded ratios retain weighted normalization to roundoff", {
   out <- fit$nuisance
   expect_equal(as.vector(out$fY_z0 %*% weights), rep(1, n), tolerance = 1e-12)
   expect_equal(as.vector(out$fY_z1 %*% weights), rep(1, n), tolerance = 1e-12)
-  expect_gte(fit$diagnostics$min_falsification_slack, -1e-12)
+  expect_gt(fit$diagnostics$min_falsification_slack, 0)
   expect_lte(fit$diagnostics$max_normalization_error, 1e-12)
 })
 
@@ -131,7 +134,7 @@ test_that("SIV estimates are constrained but falsification remains unrestricted"
   expect_identical(fit$nuisance, original)
   expect_identical(nu, original)
   expect_gt(fit$ratio_constraint$projected_fraction, 0)
-  expect_gte(fit$ratio_constraint$min_falsification_slack, -1e-12)
+  expect_gt(fit$ratio_constraint$min_falsification_slack, 0)
   expect_equal(fit$fixed_point$fY_z0, fit$estimation_nuisance$fY_z0)
   expect_equal(fit$fixed_point$fY_z1, fit$estimation_nuisance$fY_z1)
   expect_equal(fit$fixed_point$RY,
@@ -161,8 +164,43 @@ test_that("the public SIV interface constrains every repeated cross-fit", {
   expect_length(fit$median_adjustment$ratio_constraints, 2L)
   for (constraint in fit$median_adjustment$ratio_constraints) {
     expect_true(constraint$enabled)
-    expect_gte(constraint$min_falsification_slack, -1e-12)
+    expect_gt(constraint$min_falsification_slack, 0)
     expect_lte(constraint$max_normalization_error, 1e-12)
   }
   expect_length(fit$falsification$median_adjustment$p_values, 2L)
+})
+
+
+test_that("interior shrinkage prevents boundary zeros without renormalizing", {
+  nu <- list(pA1_z0 = .1, pA1_z1 = .7,
+             fY_z0 = matrix(c(.5, .5), 1L),
+             fY_z1 = matrix(c(.5, .5), 1L),
+             RY = matrix(c(.01, 100), 1L))
+  raw <- nu
+  fit <- SIV:::siv_constrain_density_ratio(
+    nu, c(1, 1), density_floor = 0, dr_floor = 0
+  )
+  out <- fit$nuisance
+  expect_gte(min(out$RY), 1e-8)
+  expect_lt(max(out$RY), 3)
+  expect_gt(min(out$fY_z1), 0)
+  expect_equal(rowSums(out$fY_z1), 1, tolerance = 1e-12)
+  expect_identical(nu, raw)
+})
+
+test_that("strict IV bounds survive floating-point rounding near one", {
+  nu <- list(pA1_z0 = c(.4, .4 + 1e-10),
+             pA1_z1 = c(.4 + 1e-10, .4),
+             fY_z0 = rbind(c(.37, .63), c(.99, .01)),
+             fY_z1 = rbind(c(.99, .01), c(.37, .63)))
+  fit <- SIV:::siv_constrain_density_ratio(nu, c(1, 1))
+  out <- fit$nuisance
+  ordered <- out$RY
+  ordered[2L, ] <- 1 / ordered[2L, ]
+  upper <- (1 - pmin(out$pA1_z0, out$pA1_z1)) /
+    (1 - pmax(out$pA1_z0, out$pA1_z1))
+  expect_true(all(ordered < upper))
+  expect_gt(fit$diagnostics$min_falsification_slack, 0)
+  expect_equal(rowSums(out$fY_z0), c(1, 1), tolerance = 1e-12)
+  expect_equal(rowSums(out$fY_z1), c(1, 1), tolerance = 1e-12)
 })

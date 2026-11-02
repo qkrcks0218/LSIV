@@ -140,10 +140,13 @@ siv_constrain_density_ratio <- function(nuisance, weights,
     ratio[ii, ] <- projected
     shift[ii] <- mid
   }
+  epsilon_N <- min(1e-8, 1 / n)
+  ratio <- (1 - epsilon_N) * ratio + epsilon_N
+  ratio <- pmin(ratio, pmax(1, iv_upper * (1 - 4 * .Machine$double.eps)))
   numerator <- ratio * base
   f0[reverse, ] <- numerator[reverse, , drop = FALSE]
   f1[!reverse, ] <- numerator[!reverse, , drop = FALSE]
-  slack <- (1 - pA1_zm) * base - (1 - pA1_zM) * numerator
+  slack <- (1 - pA1_zM) * base * (iv_upper - ratio)
   change <- abs(ratio - original_ratio)
   out <- nuisance
   out$pA1_z0 <- p0
@@ -154,6 +157,7 @@ siv_constrain_density_ratio <- function(nuisance, weights,
   out$RY <- f1 / f0
   list(nuisance = out, diagnostics = list(
     enabled = TRUE,
+    interior_epsilon = epsilon_N,
     projected_units = sum(needs_projection),
     projected_fraction = mean(needs_projection),
     adjusted_grid_fraction = mean(change > tol),
