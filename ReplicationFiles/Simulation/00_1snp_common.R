@@ -9,25 +9,26 @@
   if (is.null(x) || !length(x) || is.na(x) || !nzchar(x)) y else x
 }
 
-if (!requireNamespace("SIV", quietly = TRUE)) {
+if (!requireNamespace("LSIV", quietly = TRUE)) {
   stop(
-    "Install SIV and all required dependencies first:\n  Rscript Code/Install.R",
+    "Install LSIV and its required R packages with:\n  devtools::install_github(\"qkrcks0218/LSIV\")",
     call. = FALSE
   )
 }
-suppressPackageStartupMessages(library(SIV))
+suppressPackageStartupMessages(library(LSIV))
 
-required_siv_functions <- c("siv_check_data", "siv_make_folds", "siv_learn_fit",
-                            "siv_learn_predict", "siv_late_eif")
-missing_siv_functions <- required_siv_functions[!vapply(
-  required_siv_functions, exists, logical(1), envir = asNamespace("SIV"),
+required_lsiv_functions <- c("lsiv_check_data", "lsiv_make_folds",
+                             "lsiv_learn_fit", "lsiv_learn_predict",
+                             "lsiv_late_eif")
+missing_lsiv_functions <- required_lsiv_functions[!vapply(
+  required_lsiv_functions, exists, logical(1), envir = asNamespace("LSIV"),
   inherits = FALSE)]
-if (length(missing_siv_functions)) {
-  stop("Update the installed SIV package. Missing functions: ",
-       paste(missing_siv_functions, collapse = ", "), call. = FALSE)
+if (length(missing_lsiv_functions)) {
+  stop("Update the installed LSIV package. Missing functions: ",
+       paste(missing_lsiv_functions, collapse = ", "), call. = FALSE)
 }
 
-siv_env_int <- function(name, default, lower = 1L) {
+lsiv_env_int <- function(name, default, lower = 1L) {
   ans <- suppressWarnings(as.integer(Sys.getenv(name) %||% as.character(default)))
   if (length(ans) != 1L || is.na(ans) || ans < lower) {
     stop(sprintf("%s must be an integer >= %d.", name, lower), call. = FALSE)
@@ -36,7 +37,7 @@ siv_env_int <- function(name, default, lower = 1L) {
 }
 
 ## Comma-separated list of positive integers, e.g. SIM_N="500,1000,2000".
-siv_env_int_vector <- function(name, default, lower = 1L) {
+lsiv_env_int_vector <- function(name, default, lower = 1L) {
   value <- Sys.getenv(name)
   if (!nzchar(value)) value <- paste(default, collapse = ",")
   ans <- suppressWarnings(as.integer(trimws(
@@ -48,7 +49,7 @@ siv_env_int_vector <- function(name, default, lower = 1L) {
   ans
 }
 
-siv_env_types <- function(name = "SIM_TYPE", default = "both") {
+lsiv_env_types <- function(name = "SIM_TYPE", default = "both") {
   value <- tolower(Sys.getenv(name) %||% default)
   if (identical(value, "both")) return(c("continuous", "binary"))
   value <- strsplit(value, ",", fixed = TRUE)[[1L]]
@@ -60,19 +61,20 @@ siv_env_types <- function(name = "SIM_TYPE", default = "both") {
 }
 
 ## ---------------------------------------------------------------------------
-## Simulation DGPs. These live here, not in SIV_Package: they are properties
-## of the simulation designs rather than of any estimator implementation.
+## Simulation DGPs. These live here, not in the LSIV package: they are
+## properties of the simulation designs rather than of any estimator
+## implementation.
 ## ---------------------------------------------------------------------------
 
 ## EDIT THE DGP HERE. All observed-data generation, potential-treatment draws,
 ## oracle nuisances, and Monte Carlo truths below use this specification.
-siv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
-                           violation = "siv", one_sided = TRUE,
-                           assignment = "randomized") {
+lsiv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
+                            violation = "lsiv", one_sided = TRUE,
+                            assignment = "randomized") {
   type <- match.arg(type)
-  if (!identical(violation, "siv") || !isTRUE(one_sided) ||
+  if (!identical(violation, "lsiv") || !isTRUE(one_sided) ||
       !identical(assignment, "randomized")) {
-    stop("This comparison uses one_sided=TRUE, assignment='randomized', violation='siv'.",
+    stop("This comparison uses one_sided=TRUE, assignment='randomized', violation='lsiv'.",
          call. = FALSE)
   }
   if (length(p) != 1L || !is.finite(p) || p < 1 || p != as.integer(p)) {
@@ -117,33 +119,33 @@ siv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
        p_z1 = p_z1, p_a1 = p_a1, draw_y0 = draw_y0, draw_y1 = draw_y1,
        mean_y0 = mean_y0, mean_y1 = mean_y1, density_y0 = density_y0,
        alpha_shape = alpha_shape, log_delta = log_delta, log_gamma = log_gamma,
-       violation = "siv", violation_parameters = list(kappa = 0),
+       violation = "lsiv", violation_parameters = list(kappa = 0),
        baseline_alpha_shape = alpha_shape, log_alpha = log_alpha, alpha = alpha,
        one_sided = TRUE, assignment = "randomized")
 }
 
 ## Compatibility helper used by a few diagnostics.
-siv_alpha_shape <- function(y, type = c("continuous", "binary")) {
+lsiv_alpha_shape <- function(y, type = c("continuous", "binary")) {
   type <- match.arg(type)
-  siv_dgp_forall(type)$alpha_shape(y)
+  lsiv_dgp_forall(type)$alpha_shape(y)
 }
 
 ## Generic sampler. Do not repeat DGP formulas here.
-siv_dgp <- function(n, type = c("continuous", "binary"), p = 3L,
-                    violation = "siv",
-                    one_sided = TRUE,
-                    assignment = "randomized") {
+lsiv_dgp <- function(n, type = c("continuous", "binary"), p = 3L,
+                     violation = "lsiv",
+                     one_sided = TRUE,
+                     assignment = "randomized") {
   type <- match.arg(type)
   violation <- match.arg(violation)
   assignment <- match.arg(assignment)
-  spec <- siv_dgp_forall(type, p, violation, one_sided, assignment)
+  spec <- lsiv_dgp_forall(type, p, violation, one_sided, assignment)
   X <- spec$draw_x(n)
   W <- spec$x_index(X)
   pZ1 <- spec$p_z1(W)
   Z <- rbinom(n, 1, pZ1)
   Y0 <- spec$draw_y0(W, X)
   Y1 <- spec$draw_y1(W, X)
-  ## With `violation = "siv"` (the default) log_alpha == log_delta for both z,
+  ## With `violation = "lsiv"` (the default) log_alpha == log_delta for both z,
   ## so this is exactly the separable design used by the estimation scripts.
   logalpha_z0 <- spec$log_alpha(Y0, 0, W, X)
   logalpha_z1 <- spec$log_alpha(Y0, 1, W, X)
@@ -172,14 +174,14 @@ siv_dgp <- function(n, type = c("continuous", "binary"), p = 3L,
 }
 
 ## Generic oracle calculation from the same central DGP specification.
-siv_oracle_nuisance <- function(X, grid, weights,
-                                type = c("continuous", "binary"),
-                                violation = "siv", one_sided = TRUE,
-                                assignment = "randomized") {
+lsiv_oracle_nuisance <- function(X, grid, weights,
+                                 type = c("continuous", "binary"),
+                                 violation = "lsiv", one_sided = TRUE,
+                                 assignment = "randomized") {
   type <- match.arg(type)
   X <- as.matrix(X)
   n <- nrow(X); M <- length(grid)
-  spec <- siv_dgp_forall(type, ncol(X), violation, one_sided, assignment)
+  spec <- lsiv_dgp_forall(type, ncol(X), violation, one_sided, assignment)
   W <- spec$x_index(X)
   fy <- matrix(spec$density_y0(grid, W, X), nrow = n, ncol = M)
   Wm <- matrix(weights, n, M, byrow = TRUE)
@@ -205,8 +207,8 @@ siv_oracle_nuisance <- function(X, grid, weights,
 ## Analytic normalized update for compatible positive density inputs. The
 ## returned delta and gamma_z0=0 are boundary continuations of the interior
 ## parameters. Incompatible fitted densities are reported, not silently fixed.
-siv_one_sided_fixed_point <- function(pA1_z1, fY_z0, fY_z1, grid, weights,
-                                      y_ref = NULL) {
+lsiv_one_sided_fixed_point <- function(pA1_z1, fY_z0, fY_z1, grid, weights,
+                                       y_ref = NULL) {
   f0 <- as.matrix(fY_z0)
   f1 <- as.matrix(fY_z1)
   n <- nrow(f0)
@@ -245,16 +247,16 @@ siv_one_sided_fixed_point <- function(pA1_z1, fY_z0, fY_z1, grid, weights,
 }
 
 ## Fit arm-specific regressions on all covariates. The first stage is fitted
-## only in Z=1, and its Z=0 counterpart is exactly zero. SIV and LATE receive
+## only in Z=1, and its Z=0 counterpart is exactly zero. LSIV and LATE receive
 ## the same m0, instrument propensities, and cross-fitting splits.
-siv_one_sided_nuisance <- function(Y, A, Z, X,
-                                   type = c("continuous", "binary"),
-                                   learner = c("SL", "glm"), SL.list = 1:9,
-                                   crossfit = 2L, folds = NULL,
-                                   known_pZ1 = NULL, trim = 1e-2) {
+lsiv_one_sided_nuisance <- function(Y, A, Z, X,
+                                    type = c("continuous", "binary"),
+                                    learner = c("SL", "glm"), SL.list = 1:9,
+                                    crossfit = 2L, folds = NULL,
+                                    known_pZ1 = NULL, trim = 1e-2) {
   type <- match.arg(type)
   learner <- match.arg(learner)
-  checked <- getFromNamespace("siv_check_data", "SIV")(Y, A, Z, X)
+  checked <- getFromNamespace("lsiv_check_data", "LSIV")(Y, A, Z, X)
   Y <- checked$Y; A <- checked$A; Z <- checked$Z; X <- checked$X
   n <- length(Y)
   if (any(A > Z)) stop("One-sided estimation requires A=0 whenever Z=0.")
@@ -263,7 +265,7 @@ siv_one_sided_nuisance <- function(Y, A, Z, X,
     stop("trim must lie in (0,0.5).")
   }
   if (is.null(folds)) {
-    folds <- getFromNamespace("siv_make_folds", "SIV")(n, A, Z, crossfit)
+    folds <- getFromNamespace("lsiv_make_folds", "LSIV")(n, A, Z, crossfit)
   }
   if (!is.list(folds) || !length(folds) || any(lengths(folds) == 0) ||
       !identical(sort(as.integer(unlist(folds))), seq_len(n))) {
@@ -278,8 +280,8 @@ siv_one_sided_nuisance <- function(Y, A, Z, X,
   }
   df <- data.frame(Y = Y, A = A, Z = Z, X, check.names = FALSE)
   xnames <- colnames(X)
-  fit <- getFromNamespace("siv_learn_fit", "SIV")
-  predict_fit <- getFromNamespace("siv_learn_predict", "SIV")
+  fit <- getFromNamespace("lsiv_learn_fit", "LSIV")
+  predict_fit <- getFromNamespace("lsiv_learn_predict", "LSIV")
   guard <- function(x) pmin(pmax(x, trim), 1 - trim)
   family <- if (type == "binary") binomial() else gaussian()
   e <- m0 <- m1 <- p1 <- numeric(n)
@@ -304,7 +306,7 @@ siv_one_sided_nuisance <- function(Y, A, Z, X,
        mA_z0 = numeric(n), mA_z1 = p1, folds = folds)
 }
 
-siv_one_sided_ratio <- function(numerator, denominator) {
+lsiv_one_sided_ratio <- function(numerator, denominator) {
   den <- mean(denominator)
   if (!is.finite(den) || abs(den) < 1e-6) stop("Degenerate score denominator.")
   estimate <- mean(numerator) / den
@@ -314,22 +316,22 @@ siv_one_sided_ratio <- function(numerator, denominator) {
        first_stage = den, ok = TRUE, converged = TRUE)
 }
 
-## Finite boundary limit of the unrestricted SIV ATT score. It does not require
+## Finite boundary limit of the unrestricted LSIV ATT score. It does not require
 ## fitting outcome densities or evaluating the singular interior B,C system.
-siv_one_sided_score <- function(Y, A, Z, nuisance) {
+lsiv_one_sided_score <- function(Y, A, Z, nuisance) {
   e <- nuisance$pZ1
-  siv_one_sided_ratio((Z - e) / (1 - e) * (Y - nuisance$mY_z0), A)
+  lsiv_one_sided_ratio((Z - e) / (1 - e) * (Y - nuisance$mY_z0), A)
 }
 
 ## Projection for a known constant randomized instrument. This is exactly the
 ## LATE ratio score times e, including its denominator, when A<=Z.
-siv_one_sided_projected_score <- function(Y, A, Z, nuisance) {
+lsiv_one_sided_projected_score <- function(Y, A, Z, nuisance) {
   e <- nuisance$pZ1
   if (any(A > Z) || max(abs(e - e[1L])) > 1e-12) {
     stop("The projected identity requires A<=Z and a constant instrument probability.")
   }
   delta <- nuisance$mY_z1 - nuisance$mY_z0
-  siv_one_sided_ratio(
+  lsiv_one_sided_ratio(
     (Z - e) / (1 - e) * (Y - nuisance$mY_z0) - (Z - e) * delta,
     A - (Z - e) * nuisance$mA_z1)
 }
@@ -340,12 +342,12 @@ siv_one_sided_projected_score <- function(Y, A, Z, nuisance) {
 ## score="boundary" retains the original unrestricted-model score limit.
 ## score="randomized" uses its projection in the known randomization model.
 ## With the same nuisance fits, the latter equals the LATE estimator exactly.
-siv_compare_one_sided <- function(Y, A, Z, X,
-                                  type = c("continuous", "binary"),
-                                  learner = c("SL", "glm"), SL.list = 1:9,
-                                  crossfit = 2L, num.crossfit = 1L,
-                                  known_pZ1 = NULL, nuisance = NULL,
-                                  score = c("boundary", "randomized")) {
+lsiv_compare_one_sided <- function(Y, A, Z, X,
+                                   type = c("continuous", "binary"),
+                                   learner = c("SL", "glm"), SL.list = 1:9,
+                                   crossfit = 2L, num.crossfit = 1L,
+                                   known_pZ1 = NULL, nuisance = NULL,
+                                   score = c("boundary", "randomized")) {
   type <- match.arg(type)
   learner <- match.arg(learner)
   score <- match.arg(score)
@@ -360,20 +362,20 @@ siv_compare_one_sided <- function(Y, A, Z, X,
     stop("A supplied nuisance object represents one cross-fitting split.")
   }
   if (any(A > Z)) stop("One-sided comparison requires A<=Z.")
-  late_score <- getFromNamespace("siv_late_eif", "SIV")
+  late_score <- getFromNamespace("lsiv_late_eif", "LSIV")
   splits <- lapply(seq_len(num.crossfit), function(s) {
-    nu <- if (is.null(nuisance)) siv_one_sided_nuisance(
+    nu <- if (is.null(nuisance)) lsiv_one_sided_nuisance(
       Y, A, Z, X, type, learner, SL.list, crossfit,
       known_pZ1 = known_pZ1) else nuisance
     if (any(nu$mA_z0 != 0)) stop("The Z=0 treatment probability must be exactly zero.")
-    siv <- if (score == "boundary") siv_one_sided_score(Y, A, Z, nu) else
-      siv_one_sided_projected_score(Y, A, Z, nu)
+    lsiv <- if (score == "boundary") lsiv_one_sided_score(Y, A, Z, nu) else
+      lsiv_one_sided_projected_score(Y, A, Z, nu)
     raw_late <- late_score(Y, A, Z, nu$pZ1, nu$mY_z0, nu$mY_z1,
                           nu$mA_z0, nu$mA_z1)
     late <- list(estimate = raw_late$late, se = sqrt(raw_late$var),
                  eif = raw_late$eif, first_stage = raw_late$first_stage,
                  ok = is.finite(raw_late$late), converged = TRUE)
-    list(SIV = siv, SIV_LATE = late, nuisance = nu)
+    list(LSIV = lsiv, LSIV_LATE = late, nuisance = nu)
   })
   combine <- function(method) {
     estimates <- vapply(splits, function(x) x[[method]]$estimate, numeric(1))
@@ -387,12 +389,12 @@ siv_compare_one_sided <- function(Y, A, Z, X,
          ok = TRUE, converged = TRUE, split_estimates = estimates,
          split_variances = variances)
   }
-  list(SIV = combine("SIV"), SIV_LATE = combine("SIV_LATE"), splits = splits,
-       score = score)
+  list(LSIV = combine("LSIV"), LSIV_LATE = combine("LSIV_LATE"),
+       splits = splits, score = score)
 }
 
 ## Validation DGPs from the competing papers, used by 02_check_competitors.R.
-siv_dgp_liu2021 <- function(n) {
+lsiv_dgp_liu2021 <- function(n) {
   C1 <- rbinom(n, 1, 0.4)
   C2 <- rbinom(n, 1, 0.6)
   Z <- rbinom(n, 1, plogis(0.2 + 0.4 * C1 - 0.5 * C2))
@@ -405,7 +407,7 @@ siv_dgp_liu2021 <- function(n) {
        Y0 = Y0, Y1 = Y1, psi_true = -0.6)
 }
 
-siv_dgp_liu2021_cont <- function(n) {
+lsiv_dgp_liu2021_cont <- function(n) {
   C1 <- rbinom(n, 1, 0.4)
   C2 <- rbinom(n, 1, 0.6)
   Z <- rbinom(n, 1, plogis(0.7 + 0.8 * C1 - C2))
@@ -418,7 +420,7 @@ siv_dgp_liu2021_cont <- function(n) {
        Y0 = Y0, Y1 = Y1, psi_true = 0.3)
 }
 
-siv_dgp_sun2021 <- function(n) {
+lsiv_dgp_sun2021 <- function(n) {
   X1 <- rbinom(n, 1, 0.4)
   X2 <- rbinom(n, 1, 0.6)
   Z <- rbinom(n, 1,
@@ -430,8 +432,8 @@ siv_dgp_sun2021 <- function(n) {
        X = cbind(X1 = X1, X2 = X2), gamma_true = 1.8, mu_true = 0.769)
 }
 
-siv_dgp_sun2025 <- function(n, type = c("binary", "continuous"),
-                            gamma_true = 2) {
+lsiv_dgp_sun2025 <- function(n, type = c("binary", "continuous"),
+                             gamma_true = 2) {
   type <- match.arg(type)
   if (type == "binary") {
     L <- chol(matrix(c(1, 0.2, 0.2, 1), 2, 2))
@@ -460,22 +462,22 @@ siv_dgp_sun2025 <- function(n, type = c("binary", "continuous"),
 ## Integrate out both assignment and treatment. In the one-sided design the
 ## ATT weight is e(X)*pA1, whereas the LATE weight is pA1. Use E(Y1|X) when
 ## available to remove independent Y1 simulation noise from the reference value.
-siv_att_from_draw <- function(d) {
+lsiv_att_from_draw <- function(d) {
   effect <- (if (is.null(d$mean_y1)) d$Y1 else d$mean_y1) - d$Y0
   weight <- d$pZ1 * d$pA1 + (1 - d$pZ1) * d$pA0
   sum(weight * effect) / sum(weight)
 }
 
-siv_att_truth <- function(type = c("continuous", "binary"),
-                          n = 1000000L, seed = 20260902L, p = 3L,
-                          one_sided = TRUE, assignment = "randomized") {
+lsiv_att_truth <- function(type = c("continuous", "binary"),
+                           n = 1000000L, seed = 20260902L, p = 3L,
+                           one_sided = TRUE, assignment = "randomized") {
   ## n and seed are retained for existing callers; this truth uses integration.
-  unname(siv_compute_truths(match.arg(type), p = p, one_sided = one_sided,
-                            assignment = assignment)["ATT"])
+  unname(lsiv_compute_truths(match.arg(type), p = p, one_sided = one_sided,
+                             assignment = assignment)["ATT"])
 }
 
-## Reference estimators. These deliberately remain outside SIV_Package.
-siv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
+## Reference estimators. These deliberately remain outside the LSIV package.
+lsiv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
   X <- as.matrix(X)
   D <- cbind(`(Intercept)` = 1, A = A, X)
   Q <- cbind(`(Intercept)` = 1, Z = Z, X)
@@ -489,7 +491,7 @@ siv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
   c(estimate = b[2L], se = sqrt(V[2L, 2L]))
 }
 
-siv_fit_linear_model <- function(Y, A, Z, X) {
+lsiv_fit_linear_model <- function(Y, A, Z, X) {
   dat <- data.frame(Y = Y, A = A, Z = Z, as.data.frame(X))
   rhs <- paste(c("A", "Z", colnames(X)), collapse = " + ")
   fit <- lm(as.formula(paste("Y ~", rhs)), data = dat)
@@ -508,15 +510,15 @@ siv_fit_linear_model <- function(Y, A, Z, X) {
 ##
 ## It is the ATT one would report if A were assumed independent of Y(0) given L
 ## -- i.e. ignoring the selection on the treatment-free outcome that the
-## separable-IV model allows.  Its bias against the true ATT is therefore the
-## price of that assumption, which is exactly what the comparison is for.
+## logit-separable IV model allows.  Its bias against the true ATT is therefore
+## the price of that assumption, which is exactly what the comparison is for.
 ##
 ## Note that the outcome regression cancels from the estimand: for any g(L),
 ## E[(1-A) {Pr(A=1|L)/Pr(A=0|L)} g(L)] = E[Pr(A=1|L) g(L)] = E[A g(L)],
 ## so the two g-terms cancel and only the treatment model has to be correct.
 ## The regression affects efficiency, not consistency; it is included as
 ## written above, fitted among the treated.
-siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
+lsiv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
   X <- as.matrix(X)
   n <- length(Y)
   crossfit <- max(1L, as.integer(crossfit))
@@ -553,7 +555,7 @@ siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
     m1[te] <- stats::predict(fy, newdata = df[te, , drop = FALSE],
                              type = "response")
   }
-  ## Pr(A=1|L) -> 1 makes the odds diverge; bound it as SIV_LATE() bounds its
+  ## Pr(A=1|L) -> 1 makes the odds diverge; bound it as LSIV_LATE() bounds its
   ## own propensities.
   pA <- pmin(pmax(pA, trim), 1 - trim)
   
@@ -563,12 +565,12 @@ siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
   c(estimate = estimate, se = stats::sd(eif) / sqrt(n))
 }
 
-siv_compute_truths <- function(type, n = 300000L, seed = 20260902L, p = 3L,
-                               one_sided = TRUE, assignment = "randomized") {
+lsiv_compute_truths <- function(type, n = 300000L, seed = 20260902L, p = 3L,
+                                one_sided = TRUE, assignment = "randomized") {
   ## W~N(0,p), E{plogis(W)}=1/2, and compliance is independent of Y0,Y1
   ## given X. Integrate the conditional treatment effect over complier weights.
   ## The same deterministic reference is used by every server batch.
-  spec <- siv_dgp_forall(type, p, one_sided = one_sided, assignment = assignment)
+  spec <- lsiv_dgp_forall(type, p, one_sided = one_sided, assignment = assignment)
   average <- function(fun) integrate(function(w) fun(w) * dnorm(w, sd = sqrt(p)),
                                      -Inf, Inf, rel.tol = 1e-10)$value
   numerator <- average(function(w) spec$p_a1(w) *
@@ -577,7 +579,7 @@ siv_compute_truths <- function(type, n = 300000L, seed = 20260902L, p = 3L,
   c(ATT = target, LATE = target, TSLS_projection = target)
 }
 
-siv_summarise_results <- function(raw) {
+lsiv_summarise_results <- function(raw) {
   groups <- split(raw, interaction(raw$type, raw$method, drop = TRUE))
   out <- lapply(groups, function(g) {
     ## Preserve every finite estimate in the numerical summary. Diagnostics

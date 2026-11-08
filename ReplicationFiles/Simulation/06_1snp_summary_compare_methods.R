@@ -24,7 +24,7 @@ raw$covered <- is.finite(raw$estimate) & is.finite(raw$se) &
 
 ## Order the methods the way the comparison is read, with anything unexpected
 ## appended rather than dropped.
-method_order <- c("SIV","SIV_one_sided","SIV_LATE")
+method_order <- c("LSIV","LSIV_one_sided","LSIV_LATE")
 raw$method <- factor(raw$method,
                      levels = c(intersect(method_order, unique(raw$method)),
                                 setdiff(unique(raw$method), method_order)))
@@ -33,7 +33,7 @@ raw$method <- factor(raw$method,
 ## Summary table
 ## ---------------------------------------------------------------------------
 
-siv_summarise_merged <- function(d, scale = 10) {
+lsiv_summarise_merged <- function(d, scale = 10) {
   keys <- unique(d[, c("type", "n", "method")])
   keys <- keys[order(keys$type, keys$n, keys$method), , drop = FALSE]
   rows <- lapply(seq_len(nrow(keys)), function(i) {
@@ -77,7 +77,7 @@ siv_summarise_merged <- function(d, scale = 10) {
 }
 
 SCALE <- 10
-summary_tab <- siv_summarise_merged(raw, scale = SCALE)
+summary_tab <- lsiv_summarise_merged(raw, scale = SCALE)
 
 cat(sprintf("\nSummary of %s  (%d rows, %d batches)\n",
             basename(in_file), nrow(raw), length(unique(raw$rep)) *
@@ -117,10 +117,10 @@ utils::write.csv(summary_tab, summary_file, row.names = FALSE)
 ## ---------------------------------------------------------------------------
 
 ## Methods to plot, in the order they appear inside a group, and their labels.
-PLOT_METHODS <- c("SIV","SIV_one_sided","SIV_LATE")
-METHOD_LABEL <- c(SIV = expression(hat(tau)), 
-                  SIV_one_sided = expression(hat(tau)["ATT,1snp"]),
-                  SIV_LATE = expression(hat(tau)["LATE"]))
+PLOT_METHODS <- c("LSIV","LSIV_one_sided","LSIV_LATE")
+METHOD_LABEL <- c(LSIV = expression(hat(tau)), 
+                  LSIV_one_sided = expression(hat(tau)["ATT,1snp"]),
+                  LSIV_LATE = expression(hat(tau)["LATE"]))
 ## Set to FALSE for bare boxplots without the tabulated statistics underneath.
 SHOW_STATS <- TRUE
 
@@ -132,7 +132,8 @@ ns <- sort(unique(raw$n))
 
 ## Grey, white, and light blue distinguish the estimators by lightness and hue.
 ## Dark borders keep the white boxes visible against the background.
-COL <- c(SIV = "grey45", SIV_one_sided = "white", SIV_LATE = "#8CC6EC")[methods]
+COL <- c(LSIV = "grey45", LSIV_one_sided = "white",
+         LSIV_LATE = "#8CC6EC")[methods]
 
 ## Geometry: `GAP` is the blank space, in box widths, left between two sample
 ## sizes.  Boxes inside a group sit at consecutive integers.

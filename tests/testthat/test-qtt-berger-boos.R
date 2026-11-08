@@ -12,15 +12,15 @@ qtt_binary_oracle <- function(seed = 2L, n = 3000L) {
 }
 
 qtt_oracle_fit <- function(d, ...) {
-  siv_qtt(d$Y, d$A, d$Z, "binary", 0:1, c(1, 1),
+  lsiv_qtt(d$Y, d$A, d$Z, "binary", 0:1, c(1, 1),
            d$fp, d$nuisance, quantiles = .5, ...)
 }
 
 test_that("jump-aware binary inversion includes the true quantile difference", {
   d <- qtt_binary_oracle()
-  fit <- siv_estimate(d$Y, d$A, d$Z, matrix(0, length(d$Y), 1L),
-                      type = "binary", grid = 0:1, weights = c(1, 1),
-                      nuisance = d$nuisance, estimand = "QTT", QTT.quantile = .5)
+  fit <- lsiv_estimate(d$Y, d$A, d$Z, matrix(0, length(d$Y), 1L),
+                       type = "binary", grid = 0:1, weights = c(1, 1),
+                       nuisance = d$nuisance, estimand = "QTT", QTT.quantile = .5)
   # Both population medians are 1, so the true QTT is zero. The old equality
   # test returned [1, 1] on this sample despite the correctly specified nuisances.
   expect_equal(unname(fit$ci_matrix[1L, ]), c(0, 1))
@@ -42,7 +42,7 @@ test_that("QTT c1 tracks the nominal error and can be overridden", {
   expect_error(qtt_oracle_fit(d, num_bootstrap = 1.5), "positive integer")
 
   set.seed(911)
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, estimand = "QTT", QTT_quantile = .5, level = .90,
     Overall.Estimation_num.crossfit = 1L, Overall.Estimation_num.fold = 2L
   ))
@@ -57,7 +57,7 @@ test_that("binomial rank intervals cover Bernoulli quantiles including jumps", {
       for (q in c(.25, .5, .75)) {
         true_quantile <- as.numeric(q > 1 - p)
         intervals <- t(vapply(0:n, function(k) {
-          as.numeric(siv_quantile_ci(c(rep(0, n - k), rep(1, k)), q, .001))
+          as.numeric(lsiv_quantile_ci(c(rep(0, n - k), rep(1, k)), q, .001))
         }, numeric(2L)))
         coverage <- sum(dbinom(0:n, n, p) *
                           (intervals[, 1L] <= true_quantile &
@@ -66,7 +66,7 @@ test_that("binomial rank intervals cover Bernoulli quantiles including jumps", {
       }
     }
   }
-  expect_equal(unname(siv_quantile_ci(c(2, 4), .5, .001)[1L, ]),
+  expect_equal(unname(lsiv_quantile_ci(c(2, 4), .5, .001)[1L, ]),
                c(-Inf, Inf))
 })
 
@@ -84,7 +84,7 @@ test_that("treated quantile inference uses no bootstrap randomness", {
 
 test_that("known discrete QTT support is independent of the density model", {
   d <- qtt_binary_oracle()
-  f <- suppressWarnings(siv_estimate(
+  f <- suppressWarnings(lsiv_estimate(
     d$Y, d$A, d$Z, matrix(0, length(d$Y), 1L), type = "continuous",
     grid = 0:1, weights = c(1, 1), nuisance = d$nuisance,
     estimand = "QTT", QTT.quantile = .5, QTT.support = 0:1
@@ -112,7 +112,7 @@ test_that("continuous inversion includes accepted cells between integration node
   fp <- list(delta = matrix(1, n, length(grid)),
              fY_z0 = density, fY_z1 = density)
   nuisance <- list(pZ1 = rep(.5, n), pA1_z0 = rep(.2, n), pA1_z1 = rep(.8, n))
-  f <- siv_qtt(Y, A, Z, "continuous", grid, weights, fp, nuisance,
+  f <- lsiv_qtt(Y, A, Z, "continuous", grid, weights, fp, nuisance,
                 quantiles = .5)
   # The true effect is 1 and its counterfactual median .05 lies off the grid.
   # Previously this sample returned [1.0496, 1.2505], missing an accepted value.
@@ -126,17 +126,17 @@ test_that("continuous inversion includes accepted cells between integration node
 
   # Direct evaluation away from all breakpoints must match its containing cell.
   t <- .05
-  cf <- siv_cf_functionals(Y, A, Z, grid, weights, fp$delta,
-                           density, density, nuisance$pZ1,
-                           nuisance$pA1_z0, nuisance$pA1_z1,
-                           outer(grid, t, "<=") * 1, outer(Y, t, "<=") * 1)
+  cf <- lsiv_cf_functionals(Y, A, Z, grid, weights, fp$delta,
+                            density, density, nuisance$pZ1,
+                            nuisance$pA1_z0, nuisance$pA1_z1,
+                            outer(grid, t, "<=") * 1, outer(Y, t, "<=") * 1)
   index <- max(which(f$threshold <= t))
-  direct_p <- pmin(1, siv_qtt_pvalue(cf$num, A, .5)$p + f$c1)
+  direct_p <- pmin(1, lsiv_qtt_pvalue(cf$num, A, .5)$p + f$c1)
   expect_equal(unname(f$adjusted_pvalue[index, 1L]), unname(direct_p),
                tolerance = 1e-12)
   expect_equal(f$cdf[index], unname(cf$parameter), tolerance = 1e-12)
 
-  bounded <- siv_qtt(Y, A, Z, "continuous", grid, weights, fp, nuisance,
+  bounded <- lsiv_qtt(Y, A, Z, "continuous", grid, weights, fp, nuisance,
                       quantiles = .5, bounds = c(-1, 2))
   expect_lte(bounded$ci[1L, "lower"], 1)
   expect_gte(bounded$ci[1L, "upper"], 1)
@@ -146,22 +146,22 @@ test_that("continuous inversion includes accepted cells between integration node
 
 test_that("projection keeps complete cells, disconnected sets, and unbounded tails", {
   C1 <- c(lower = 3, upper = 4)
-  expect_equal(siv_qtt_ci(2L, c(0, .5, 1), C1,
-                          threshold_upper = c(.5, 1, Inf)),
+  expect_equal(lsiv_qtt_ci(2L, c(0, .5, 1), C1,
+                           threshold_upper = c(.5, 1, Inf)),
                c(lower = 2, upper = 3.5))
-  expect_equal(siv_qtt_ci(c(1L, 3L), c(-Inf, 0, 2), C1,
-                          threshold_upper = c(0, 2, Inf)),
+  expect_equal(lsiv_qtt_ci(c(1L, 3L), c(-Inf, 0, 2), C1,
+                           threshold_upper = c(0, 2, Inf)),
                c(lower = -Inf, upper = Inf))
-  expect_equal(siv_qtt_ci(integer(), 0:1, C1, support = 0:1),
+  expect_equal(lsiv_qtt_ci(integer(), 0:1, C1, support = 0:1),
                c(lower = 2, upper = 4))
 })
 
 test_that("repeated QTT intervals respect known binary bounds", {
-  expect_identical(siv_qtt_endpoint_median(c(-Inf, -Inf, 1)), -Inf)
-  expect_identical(siv_qtt_endpoint_median(c(Inf, Inf, 1, NA)), Inf)
+  expect_identical(lsiv_qtt_endpoint_median(c(-Inf, -Inf, 1)), -Inf)
+  expect_identical(lsiv_qtt_endpoint_median(c(Inf, Inf, 1, NA)), Inf)
   set.seed(912)
   d <- test_dgp(400L, "binary")
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, d$X, estimand = "QTT", QTT_quantile = .001,
     Overall.Estimation_num.crossfit = 3L, Overall.Estimation_num.fold = 2L
   ))
@@ -172,20 +172,20 @@ test_that("repeated QTT intervals respect known binary bounds", {
 })
 
 test_that("declared bounds constrain exterior ranks and empty inversions", {
-  expect_equal(unname(siv_quantile_ci(c(2, 4), .5, .001,
+  expect_equal(unname(lsiv_quantile_ci(c(2, 4), .5, .001,
                                        bounds = c(0, 52))[1L, ]), c(0, 52))
-  expect_equal(siv_qtt_ci(integer(), 0:52, c(lower = -Inf, upper = Inf),
-                          bounds = c(0, 52)), c(lower = -52, upper = 52))
+  expect_equal(lsiv_qtt_ci(integer(), 0:52, c(lower = -Inf, upper = Inf),
+                           bounds = c(0, 52)), c(lower = -52, upper = 52))
   # The Job Corps treated-quantile interval is narrower than the full domain.
-  expect_equal(siv_qtt_ci(integer(), 0:52, c(lower = 11, upper = 16),
-                          bounds = c(0, 52)), c(lower = -41, upper = 16))
-  expect_equal(siv_qtt_ci(c(1L, 3L), c(-Inf, 0, 52),
-                          c(lower = 11, upper = 16),
-                          threshold_upper = c(0, 52, Inf), bounds = c(0, 52)),
+  expect_equal(lsiv_qtt_ci(integer(), 0:52, c(lower = 11, upper = 16),
+                           bounds = c(0, 52)), c(lower = -41, upper = 16))
+  expect_equal(lsiv_qtt_ci(c(1L, 3L), c(-Inf, 0, 52),
+                           c(lower = 11, upper = 16),
+                           threshold_upper = c(0, 52, Inf), bounds = c(0, 52)),
                c(lower = -41, upper = 16))
   # Counterfactual support alone imposes no bound on the treated outcome.
-  expect_equal(siv_qtt_ci(integer(), 0:1, c(lower = 3, upper = 4),
-                          support = 0:1), c(lower = 2, upper = 4))
+  expect_equal(lsiv_qtt_ci(integer(), 0:1, c(lower = 3, upper = 4),
+                           support = 0:1), c(lower = 2, upper = 4))
 })
 
 test_that("bounded jump outcomes have finite CIs even after empty inversion", {
@@ -199,8 +199,8 @@ test_that("bounded jump outcomes have finite CIs even after empty inversion", {
   fp <- list(delta = matrix(1, n, 2L), fY_z0 = density, fY_z1 = density)
   nuisance <- list(pZ1 = rep(.5, n), pA1_z0 = rep(.2, n),
                    pA1_z1 = rep(.8, n), fY_z0 = density, fY_z1 = density)
-  fit <- function(...) siv_qtt(Y, A, Z, "continuous", c(0, 52), c(1, 1),
-                               fp, nuisance, quantiles = .25, ...)
+  fit <- function(...) lsiv_qtt(Y, A, Z, "continuous", c(0, 52), c(1, 1),
+                                fp, nuisance, quantiles = .25, ...)
   unknown <- fit()
   expect_true(unknown$empty_inversion[1L])
   expect_equal(unname(unknown$ci[1L, ]), c(-Inf, Inf))
@@ -212,7 +212,7 @@ test_that("bounded jump outcomes have finite CIs even after empty inversion", {
   discrete <- fit(support = 0:52, bounds = c(0, 52))
   expect_false(discrete$empty_inversion[1L])
   expect_equal(unname(discrete$ci[1L, ]), c(14, 14))
-  core <- suppressWarnings(siv_estimate(
+  core <- suppressWarnings(lsiv_estimate(
     Y, A, Z, matrix(0, n, 1L), type = "continuous", grid = c(0, 52),
     weights = c(1, 1), nuisance = nuisance, estimand = "QTT",
     QTT.quantile = .25, QTT.support = 0:52, QTT.bounds = c(0, 52)
@@ -227,11 +227,11 @@ test_that("QTT bounds are validated and passed through the public interface", {
     expect_error(qtt_oracle_fit(d, bounds = bad), "QTT_bounds")
   }
   expect_error(qtt_oracle_fit(d, bounds = c(0, .5)), "every observed outcome")
-  expect_error(siv_qtt(d$Y, d$A, d$Z, "continuous", 0:1, c(1, 1),
-                       d$fp, d$nuisance, support = 0:2, bounds = c(0, 1)),
+  expect_error(lsiv_qtt(d$Y, d$A, d$Z, "continuous", 0:1, c(1, 1),
+                        d$fp, d$nuisance, support = 0:2, bounds = c(0, 1)),
                 "QTT_support.*within.*QTT_bounds")
   set.seed(913)
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y * 52, d$A, d$Z, y_type = "continuous", y_grid = c(0, 52),
     y_weights = c(1, 1), y_ref = 0, outcome_density = "gaussian",
     ratio_method = "logistic", estimand = "QTT", QTT_quantile = .001,

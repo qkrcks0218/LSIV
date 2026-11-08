@@ -30,16 +30,16 @@ Available groups: 1 = GLM, 2 = lasso/ridge, 3 = earth,
 4 = GAM, 5 = xgboost, 6 = polynomial spline, 7 = random forest,
 8 = gbm, 9 = 1-layer MLP.  Groups whose packages are not installed are
 dropped with a warning, because every machine-learning package is a
-*suggested*, not a required, dependency of \pkg{SIV}.}
+*suggested*, not a required, dependency of \pkg{LSIV}.}
 
 \item{obsWeights}{Optional observation weights.}
 
 \item{SL.N}{Sample size used to set the Version1 GBM minimum-node tuning
-value. `SIV()` supplies the full analysis sample size.}
+value. `LSIV()` supplies the full analysis sample size.}
 
 \item{PS.thr}{Propensity score threshold (default 1e-3).  Retained for
 interface compatibility with the \pkg{UDID} version; probability bounding
-is applied by the callers through [siv_bound_prob()].}
+is applied by the callers through [lsiv_bound_prob()].}
 
 \item{CVlist}{Optional list of cross-validation fold assignments.}
 }
@@ -54,9 +54,9 @@ base learners.
 \details{
 This is the `MySL()` wrapper of the \pkg{UDID} package, ported unchanged in
 its statistical content; see the file header of `R/mysl.R` for the list of
-plumbing adaptations.  Within \pkg{SIV} it supplies the nuisance-function
-estimates of [SIV()] and [SIV_LATE()]. [SIV()] always uses this wrapper,
-while [SIV_LATE()] exposes a learner choice.
+plumbing adaptations.  Within \pkg{LSIV} it supplies the nuisance-function
+estimates of [LSIV()] and [LSIV_LATE()]. [LSIV()] always uses this wrapper,
+while [LSIV_LATE()] exposes a learner choice.
 
 
 \code{MySL} is a convenience wrapper of the \code{SuperLearner}

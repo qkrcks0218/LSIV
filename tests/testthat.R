@@ -1,4 +1,4 @@
 library(testthat)
-library(SIV)
+library(LSIV)
 
-test_check("SIV")
+test_check("LSIV")

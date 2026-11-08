@@ -1,18 +1,18 @@
-Package: SIV
+Package: LSIV
 Type: Package
-Title: Separable Instrumental Variable Methods for Treatment Effects and
+Title: Logit-Separable Instrumental Variable Methods for Treatment Effects and
         Nonignorable Missing Data
 Version: 0.1.1
 Authors@R: c(
     person("Chan", "Park", role = c("aut", "cre"),
            email = "parkchan@illinois.edu"),
     person("Eric J.", "Tchetgen Tchetgen", role = "aut"))
-Description: Implements the nonparametric separable instrumental variable (SIV)
-    estimator of average and quantile treatment effects on the treated (ATT and
-    QTT), together with an influence-function falsification test, under a
-    logit-separable binary treatment choice model (Park and Tchetgen Tchetgen),
-    together with faithful implementations of the competing estimators of
-    Liu et al. (2021) <arXiv:1506.08149>, Sun et al. (2021)
+Description: Implements the nonparametric logit-separable instrumental variable
+    (LSIV) estimator of average and quantile treatment effects on the treated
+    (ATT and QTT), together with an influence-function falsification test,
+    under a logit-separable binary treatment choice model (Park and Tchetgen
+    Tchetgen), together with faithful implementations of the competing
+    estimators of Liu et al. (2021) <arXiv:1506.08149>, Sun et al. (2021)
     <doi:10.5705/ss.202016.0324> and Sun, Miao and Wickramarachchi (2025)
     <doi:10.5705/ss.202023.0383>.  All competing estimators are M-estimators
     and are supplied with their stacked-estimating-equation ("sandwich")
@@ -27,7 +27,7 @@ Description: Implements the nonparametric separable instrumental variable (SIV)
     median-heuristic ratio bandwidths remain available as options. An
     efficient-influence-function estimator of
     the local average treatment
-    effect ('SIV_LATE') is provided as a reference point under the standard
+    effect ('LSIV_LATE') is provided as a reference point under the standard
     instrumental-variable assumptions.  Instrument, treatment, and
     discrete-outcome nuisance functions are estimated by a Super Learner
     ensemble ('MySL').

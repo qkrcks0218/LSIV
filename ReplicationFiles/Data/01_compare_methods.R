@@ -9,12 +9,12 @@ if(length(args) == 1){
   stop()
 }
 
-library(SIV)
+library(LSIV)
 source("00_common.R")
 
-## SIV: ATT, QTT(0.25, 0.5, 0.75) and the falsification test.
+## LSIV: ATT, QTT(0.25, 0.5, 0.75) and the falsification test.
 ## Competing methods: ATT only.
-## One repetition per job; SIV()'s repeated cross-fitting median adjustment is
+## One repetition per job; LSIV()'s repeated cross-fitting median adjustment is
 ## applied across jobs by 03_summary.R.
 
 SL_LIST <- c(1:9)
@@ -31,11 +31,11 @@ message(sprintf("BATCH=%d: N=%d, SL.list=%s, %d fold(s)",
                 SEED, length(d$Y), paste(SL_LIST, collapse = ","), NUM_FOLD))
 
 ## ---------------------------------------------------------------------------
-## SIV
+## LSIV
 ## ---------------------------------------------------------------------------
 
 set.seed(SEED)
-siv_run <- jc_capture(SIV::SIV(
+lsiv_run <- jc_capture(LSIV::LSIV(
   d$Y, d$A, d$Z, d$X,
   estimand = c("ATT", "QTT"),
   level = 0.95,
@@ -57,18 +57,18 @@ siv_run <- jc_capture(SIV::SIV(
   falsification_num.bin = c(20L, rep.int(5L, ncol(d$X))),
   falsification_categorical = colnames(d$X)
 ))
-fit <- siv_run$value
+fit <- lsiv_run$value
 fit
 
-siv_estimands <- c("ATT", paste0("QTT_", vapply(QTT_QUANTILE, format,
-                                                character(1L), trim = TRUE,
-                                                scientific = FALSE)))
+lsiv_estimands <- c("ATT", paste0("QTT_", vapply(QTT_QUANTILE, format,
+                                                 character(1L), trim = TRUE,
+                                                 scientific = FALSE)))
 if (is.null(fit)) {
-  siv_rows <- do.call(rbind, lapply(siv_estimands, function(nm) {
-    jc_row("SIV", nm, seconds = siv_run$seconds,
-           warning = siv_run$warning, error = siv_run$error)
+  lsiv_rows <- do.call(rbind, lapply(lsiv_estimands, function(nm) {
+    jc_row("LSIV", nm, seconds = lsiv_run$seconds,
+           warning = lsiv_run$warning, error = lsiv_run$error)
   }))
-  siv_test <- data.frame(
+  lsiv_test <- data.frame(
     seed = SEED, converged = NA, g_floor_frac = NA_real_,
     min_relevance = NA_real_, contraction_modulus = NA_real_,
     ratio_method = NA_character_,
@@ -76,25 +76,25 @@ if (is.null(fit)) {
     falsification_critical_value = NA_real_,
     falsification_p_value = NA_real_, falsification_reject = NA,
     falsification_dictionary = NA_integer_,
-    seconds = siv_run$seconds, warning = siv_run$warning,
-    error = siv_run$error, stringsAsFactors = FALSE
+    seconds = lsiv_run$seconds, warning = lsiv_run$warning,
+    error = lsiv_run$error, stringsAsFactors = FALSE
   )
 } else {
   diagnostic_ok <- fit$converged &&
     fit$diagnostics[["g_floor_frac"]] <= 1e-3 &&
     fit$diagnostics[["min_relevance"]] >= 1e-3
   est <- stats::coef(fit)
-  se <- SIV::siv_se(fit)
+  se <- LSIV::lsiv_se(fit)
   ## ATT: Wald interval from the influence function (Theorem 5.1).
   ## QTT: Berger-Boos interval; there is no Wald SE.
-  siv_rows <- do.call(rbind, lapply(siv_estimands, function(nm) {
-    jc_row("SIV", nm, est[nm], se[nm],
+  lsiv_rows <- do.call(rbind, lapply(lsiv_estimands, function(nm) {
+    jc_row("LSIV", nm, est[nm], se[nm],
            fit$ci_matrix[nm, "lower"], fit$ci_matrix[nm, "upper"],
-           ok = diagnostic_ok, seconds = siv_run$seconds,
-           warning = siv_run$warning)
+           ok = diagnostic_ok, seconds = lsiv_run$seconds,
+           warning = lsiv_run$warning)
   }))
   ft <- fit$falsification
-  siv_test <- data.frame(
+  lsiv_test <- data.frame(
     seed = SEED, converged = fit$converged,
     g_floor_frac = fit$diagnostics[["g_floor_frac"]],
     min_relevance = fit$diagnostics[["min_relevance"]],
@@ -105,62 +105,62 @@ if (is.null(fit)) {
     falsification_p_value = ft$p_value,
     falsification_reject = ft$reject,
     falsification_dictionary = ft$n_dictionary,
-    seconds = siv_run$seconds, warning = siv_run$warning,
+    seconds = lsiv_run$seconds, warning = lsiv_run$warning,
     error = "", stringsAsFactors = FALSE
   )
 
   ## Cross-fitted conditional densities for the overlap diagnostic.
-  dens <- siv_conditional_densities(fit)
+  dens <- lsiv_conditional_densities(fit)
   dens$seed <- SEED
-  saveRDS(dens, sprintf("JC_SIV_Density_B%0.5d.rds", SEED))
+  saveRDS(dens, sprintf("JC_LSIV_Density_B%0.5d.rds", SEED))
 }
 
 ## ---------------------------------------------------------------------------
 ## Competing methods (ATT only). Settings match
-## Simulation_Version2_based_on_SIV_Package/Main/01_compare_methods.R.
+## ReplicationFiles/Simulation/01_compare_methods.R.
 ## ---------------------------------------------------------------------------
 
-## A separate stream keeps these results independent of the SIV call.
+## A separate stream keeps these results independent of the LSIV call.
 set.seed(SEED + 100000L)
 rows <- list()
 
-rows[["SIV_Liu"]] <- run_method("SIV_Liu", "ATT", {
-  fit_liu <- SIV::SIV_Liu(
+rows[["LSIV_Liu"]] <- run_method("LSIV_Liu", "ATT", {
+  fit_liu <- LSIV::LSIV_Liu(
     d$Y, d$A, d$Z, d$X,
     estimator = "dr", outcome_type = "continuous",
-    basis = SIV::siv_basis_spec("linear"), n_nodes = 12L
+    basis = LSIV::lsiv_basis_spec("linear"), n_nodes = 12L
   )
   list(estimate = stats::coef(fit_liu)["ETT"],
-       se = SIV::siv_se(fit_liu)["ETT"],
+       se = LSIV::lsiv_se(fit_liu)["ETT"],
        ok = fit_liu$converged && all(fit_liu$checks))
 })
 
-rows[["SIV_Sun"]] <- run_method("SIV_Sun", "ATT", {
-  fit_sun <- SIV::SIV_Sun(
+rows[["LSIV_Sun"]] <- run_method("LSIV_Sun", "ATT", {
+  fit_sun <- LSIV::LSIV_Sun(
     d$Y, d$A, d$Z, d$X,
     outcome_type = "continuous",
-    basis = SIV::siv_basis_spec("linear"), n_nodes = 12L
+    basis = LSIV::lsiv_basis_spec("linear"), n_nodes = 12L
   )
   list(estimate = stats::coef(fit_sun)["ATT"],
-       se = SIV::siv_se(fit_sun)["ATT"],
+       se = LSIV::lsiv_se(fit_sun)["ATT"],
        ok = fit_sun$converged && all(fit_sun$checks))
 })
 
-## SIV_LATE estimates the LATE; it is reported in the ATT column as the
+## LSIV_LATE estimates the LATE; it is reported in the ATT column as the
 ## conventional-IV proxy, as in the simulation.
-rows[["SIV_LATE"]] <- run_method("SIV_LATE", "ATT", {
-  fit_late <- SIV::SIV_LATE(
+rows[["LSIV_LATE"]] <- run_method("LSIV_LATE", "ATT", {
+  fit_late <- LSIV::LSIV_LATE(
     d$Y, d$A, d$Z, d$X,
     learner = "SL", SL.list = SL_LIST,
     crossfit = 2L
   )
   list(estimate = stats::coef(fit_late)["LATE"],
-       se = SIV::siv_se(fit_late)["LATE"],
+       se = LSIV::lsiv_se(fit_late)["LATE"],
        ok = fit_late$converged && abs(fit_late$first_stage) >= 1e-3)
 })
 
 rows[["2SLS"]] <- run_method("2SLS", "ATT", {
-  ans <- siv_fit_2sls(d$Y, d$A, d$Z, d$X)
+  ans <- lsiv_fit_2sls(d$Y, d$A, d$Z, d$X)
   list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
 })
 
@@ -168,17 +168,17 @@ rows[["2SLS"]] <- run_method("2SLS", "ATT", {
 ## point estimate is the Wald estimand without conditioning on X.
 rows[["2SLS_no_X"]] <- run_method("2SLS_no_X", "ATT", {
   X_empty <- matrix(numeric(0L), nrow = length(d$Y), ncol = 0L)
-  ans <- siv_fit_2sls(d$Y, d$A, d$Z, X_empty)
+  ans <- lsiv_fit_2sls(d$Y, d$A, d$Z, X_empty)
   list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
 })
 
 rows[["Ign"]] <- run_method("Ign", "ATT", {
-  ans <- siv_fit_ignorability(d$Y, d$A, d$Z, d$X, crossfit = 2L)
+  ans <- lsiv_fit_ignorability(d$Y, d$A, d$Z, d$X, crossfit = 2L)
   list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
 })
 
 rows[["linear model"]] <- run_method("linear model", "ATT", {
-  ans <- siv_fit_linear_model(d$Y, d$A, d$Z, d$X)
+  ans <- lsiv_fit_linear_model(d$Y, d$A, d$Z, d$X)
   list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
 })
 
@@ -186,7 +186,7 @@ rows[["linear model"]] <- run_method("linear model", "ATT", {
 ## Output: one file of each kind per job.
 ## ---------------------------------------------------------------------------
 
-raw <- rbind(siv_rows, do.call(rbind, rows))
+raw <- rbind(lsiv_rows, do.call(rbind, rows))
 rownames(raw) <- NULL
 raw <- cbind(seed = SEED, raw)
 
@@ -201,6 +201,6 @@ test_columns <- c(
 
 write.csv(raw[, result_columns, drop = FALSE],
           sprintf("JC_Result_B%0.5d.csv", SEED), row.names = FALSE)
-write.csv(siv_test[, test_columns, drop = FALSE],
-          sprintf("JC_SIV_Test_B%0.5d.csv", SEED), row.names = FALSE)
+write.csv(lsiv_test[, test_columns, drop = FALSE],
+          sprintf("JC_LSIV_Test_B%0.5d.csv", SEED), row.names = FALSE)
  

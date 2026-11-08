@@ -28,7 +28,7 @@ combine <- function(g) {
 
 groups <- split(raw, list(raw$method, raw$estimand), drop = TRUE)
 summary <- do.call(rbind, lapply(groups, combine))
-method_order <- c("SIV", "SIV_Liu", "SIV_Sun", "SIV_LATE", "2SLS",
+method_order <- c("LSIV", "LSIV_Liu", "LSIV_Sun", "LSIV_LATE", "2SLS",
                   "2SLS_no_X", "Ign", "linear model")
 summary <- summary[order(match(summary$method, method_order),
                          summary$estimand), ]

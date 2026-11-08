@@ -13,42 +13,42 @@
 ##              never conflated in the printed output.
 ## ----------------------------------------------------------------------------
 
-#' Extract estimated coefficients from a separable-IV fit
+#' Extract estimated coefficients from a logit-separable IV fit
 #'
-#' @param object A fitted object returned by [SIV()], [SIV_Liu()],
-#'   [SIV_Sun()] or [SIV_Sun2021()].
+#' @param object A fitted object returned by [LSIV()], [LSIV_Liu()],
+#'   [LSIV_Sun()] or [LSIV_Sun2021()].
 #' @param ... Ignored.
 #' @return A named numeric vector of estimates.
 #' @examples
 #' set.seed(1); n <- 300; X <- cbind(X1 = rnorm(n))
 #' Z <- rbinom(n, 1, plogis(0.2 * X[, 1])); Y0 <- rbinom(n, 1, 0.5)
 #' A <- rbinom(n, 1, plogis(-2 + 4 * Z + 0.3 * Y0)); Y <- ifelse(A, 1, Y0)
-#' coef(SIV(Y, A, Z, X, y_type = "binary"))
+#' coef(LSIV(Y, A, Z, X, y_type = "binary"))
 #' @export
-coef.siv_fit <- function(object, ...) object$estimate
+coef.lsiv_fit <- function(object, ...) object$estimate
 
-#' Extract the estimated covariance matrix from a separable-IV fit
+#' Extract the estimated covariance matrix from a logit-separable IV fit
 #'
-#' For [SIV_Liu()], [SIV_Sun()] and [SIV_Sun2021()] this is the sandwich
+#' For [LSIV_Liu()], [LSIV_Sun()] and [LSIV_Sun2021()] this is the sandwich
 #' covariance matrix obtained by stacking *all* estimating equations, including
 #' those defining the nuisance parameters (Sun et al. 2021, Supplemental
-#' Appendix eq. (S2)).  For [SIV()] it is the influence-function based variance
+#' Appendix eq. (S2)).  For [LSIV()] it is the influence-function based variance
 #' of Theorem 5.1 of Park and Tchetgen Tchetgen.
 #'
-#' @param object A fitted separable-IV object.
+#' @param object A fitted logit-separable IV object.
 #' @param ... Ignored.
 #' @return A covariance matrix.
 #' @examples
 #' set.seed(1); n <- 300; X <- cbind(X1 = rnorm(n))
 #' Z <- rbinom(n, 1, plogis(0.2 * X[, 1])); Y0 <- rbinom(n, 1, 0.5)
 #' A <- rbinom(n, 1, plogis(-2 + 4 * Z + 0.3 * Y0)); Y <- ifelse(A, 1, Y0)
-#' vcov(SIV(Y, A, Z, X, y_type = "binary"))
+#' vcov(LSIV(Y, A, Z, X, y_type = "binary"))
 #' @export
-vcov.siv_fit <- function(object, ...) object$vcov
+vcov.lsiv_fit <- function(object, ...) object$vcov
 
-#' Confidence intervals for a separable-IV fit
+#' Confidence intervals for a logit-separable IV fit
 #'
-#' @param object A fitted separable-IV object.
+#' @param object A fitted logit-separable IV object.
 #' @param parm Optional character vector of parameter names.
 #' @param level Confidence level.
 #' @param ... Ignored.
@@ -57,9 +57,9 @@ vcov.siv_fit <- function(object, ...) object$vcov
 #' set.seed(1); n <- 300; X <- cbind(X1 = rnorm(n))
 #' Z <- rbinom(n, 1, plogis(0.2 * X[, 1])); Y0 <- rbinom(n, 1, 0.5)
 #' A <- rbinom(n, 1, plogis(-2 + 4 * Z + 0.3 * Y0)); Y <- ifelse(A, 1, Y0)
-#' confint(SIV(Y, A, Z, X, y_type = "binary"))
+#' confint(LSIV(Y, A, Z, X, y_type = "binary"))
 #' @export
-confint.siv_fit <- function(object, parm, level = 0.95, ...) {
+confint.lsiv_fit <- function(object, parm, level = 0.95, ...) {
   est <- object$estimate
   if (missing(parm) || is.null(parm)) parm <- names(est)
   bad <- setdiff(parm, names(est))
@@ -78,7 +78,7 @@ confint.siv_fit <- function(object, parm, level = 0.95, ...) {
     out <- cbind(est[parm] - q * se[parm], est[parm] + q * se[parm])
     if (anyNA(out) && !is.null(object$qtt)) {
       warning("A QTT interval at a new confidence level requires refitting ",
-              "`SIV()` with that `level`; returning `NA` for those rows.",
+              "`LSIV()` with that `level`; returning `NA` for those rows.",
               call. = FALSE)
     }
   }
@@ -87,9 +87,9 @@ confint.siv_fit <- function(object, parm, level = 0.95, ...) {
   out
 }
 
-#' Standard errors of a separable-IV fit
+#' Standard errors of a logit-separable IV fit
 #'
-#' @param object A fitted separable-IV object.
+#' @param object A fitted logit-separable IV object.
 #' @param ... Ignored.
 #' @return A named numeric vector of standard errors, with an attribute
 #'   `"type"` describing their provenance.
@@ -97,33 +97,33 @@ confint.siv_fit <- function(object, parm, level = 0.95, ...) {
 #' set.seed(1); n <- 300; X <- cbind(X1 = rnorm(n))
 #' Z <- rbinom(n, 1, plogis(0.2 * X[, 1])); Y0 <- rbinom(n, 1, 0.5)
 #' A <- rbinom(n, 1, plogis(-2 + 4 * Z + 0.3 * Y0)); Y <- ifelse(A, 1, Y0)
-#' siv_se(SIV(Y, A, Z, X, y_type = "binary"))
+#' lsiv_se(LSIV(Y, A, Z, X, y_type = "binary"))
 #' @export
-siv_se <- function(object, ...) UseMethod("siv_se")
+lsiv_se <- function(object, ...) UseMethod("lsiv_se")
 
-#' @rdname siv_se
+#' @rdname lsiv_se
 #' @export
-siv_se.siv_fit <- function(object, ...) {
+lsiv_se.lsiv_fit <- function(object, ...) {
   se <- sqrt(pmax(diag(as.matrix(object$vcov)), 0))
   names(se) <- names(object$estimate)
   attr(se, "type") <- object$se_type
   se
 }
 
-#' Summarise a separable-IV fit
+#' Summarise a logit-separable IV fit
 #'
-#' @param object A fitted separable-IV object.
+#' @param object A fitted logit-separable IV object.
 #' @param parm Optional character vector selecting the parameters to report.
 #'   Defaults to the target parameters of the method.
 #' @param ... Ignored.
-#' @return An object of class `"summary.siv_fit"`.
+#' @return An object of class `"summary.lsiv_fit"`.
 #' @examples
 #' set.seed(1); n <- 300; X <- cbind(X1 = rnorm(n))
 #' Z <- rbinom(n, 1, plogis(0.2 * X[, 1])); Y0 <- rbinom(n, 1, 0.5)
 #' A <- rbinom(n, 1, plogis(-2 + 4 * Z + 0.3 * Y0)); Y <- ifelse(A, 1, Y0)
-#' summary(SIV(Y, A, Z, X, y_type = "binary"))
+#' summary(LSIV(Y, A, Z, X, y_type = "binary"))
 #' @export
-summary.siv_fit <- function(object, parm = NULL, ...) {
+summary.lsiv_fit <- function(object, parm = NULL, ...) {
   est <- object$estimate
   se <- sqrt(pmax(diag(as.matrix(object$vcov)), 0))
   names(se) <- names(est)
@@ -132,19 +132,19 @@ summary.siv_fit <- function(object, parm = NULL, ...) {
   z <- est[parm] / se[parm]
   tab <- cbind(Estimate = est[parm], `Std. Error` = se[parm],
                `z value` = z, `Pr(>|z|)` = 2 * stats::pnorm(-abs(z)))
-  ci <- confint.siv_fit(object, parm, level = object$level %||% 0.95)
+  ci <- confint.lsiv_fit(object, parm, level = object$level %||% 0.95)
   out <- list(method = object$method, se_type = object$se_type,
               coefficients = tab, ci = ci, n = object$n,
               converged = object$converged,
               checks = object$checks, call = object$call,
               type = object$type, estimator = object$estimator,
               qtt = object$qtt, falsification = object$falsification)
-  class(out) <- "summary.siv_fit"
+  class(out) <- "summary.lsiv_fit"
   out
 }
 
 #' @export
-print.summary.siv_fit <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.summary.lsiv_fit <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   cat("\n", x$method, "\n", sep = "")
   if (!is.null(x$type)) cat("Outcome type: ", x$type, "\n", sep = "")
   if (!is.null(x$estimator)) cat("Estimator:    ", x$estimator, "\n", sep = "")
@@ -182,7 +182,7 @@ print.summary.siv_fit <- function(x, digits = max(3L, getOption("digits") - 3L),
 }
 
 #' @export
-print.siv_fit <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.lsiv_fit <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
   cat("\n", x$method, "\n\n", sep = "")
   est <- x$estimate
   se <- sqrt(pmax(diag(as.matrix(x$vcov)), 0))
@@ -218,9 +218,9 @@ print.siv_fit <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
 #' @param tol Numerical tolerance.
 #' @return A named logical vector.
 #' @examples
-#' siv_check_vcov(diag(2), p = 2)
+#' lsiv_check_vcov(diag(2), p = 2)
 #' @export
-siv_check_vcov <- function(V, p = NULL, tol = 1e-8) {
+lsiv_check_vcov <- function(V, p = NULL, tol = 1e-8) {
   V <- as.matrix(V)
   c(dim_ok      = is.null(p) || identical(dim(V), c(as.integer(p), as.integer(p))),
     finite      = all(is.finite(V)),

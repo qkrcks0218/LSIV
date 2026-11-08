@@ -1,15 +1,15 @@
 ## Shared utilities for the version-2 Job Corps analysis.
 
-if (!requireNamespace("SIV", quietly = TRUE)) {
+if (!requireNamespace("LSIV", quietly = TRUE)) {
   stop(
-    "Install SIV and all required dependencies first:\n  Rscript Code/Install.R",
+    "Install LSIV and its required R packages with:\n  devtools::install_github(\"qkrcks0218/LSIV\")",
     call. = FALSE
   )
 }
-suppressPackageStartupMessages(library(SIV))
+suppressPackageStartupMessages(library(LSIV))
 
 ## ---------------------------------------------------------------------------
-## Data. The variable construction is identical to Data_Version1/1.SIV_JC.R.
+## Data. The variable construction is identical to Data_Version1/1.LSIV_JC.R.
 ## ---------------------------------------------------------------------------
 
 jc_load_data <- function(path = "JC.csv") {
@@ -32,7 +32,7 @@ jc_load_data <- function(path = "JC.csv") {
   list(Y = Y, A = A, Z = Z, X = X)
 }
 
-## Weeks worked in year 4 take the values 0, ..., 52. As in Version 1, SIV
+## Weeks worked in year 4 take the values 0, ..., 52. As in Version 1, LSIV
 ## uses the nonparametric continuous-outcome nuisances (np baseline density,
 ## KLIEP/uLSIF density ratio) evaluated on this integer grid with unit
 ## weights, so every integral is a sum over the 53 support points.
@@ -94,7 +94,7 @@ run_method <- function(method, estimand, code) {
 }
 
 ## ---------------------------------------------------------------------------
-## Conditional outcome densities implied by one SIV fit, for the overlap
+## Conditional outcome densities implied by one LSIV fit, for the overlap
 ## diagnostic of Supplement A.8.2 (02_density_ratio.R).
 ##
 ##   f(y | A=0, Z=z, X): the untreated densities entering the fixed point;
@@ -103,14 +103,14 @@ run_method <- function(method, estimand, code) {
 ##         = delta(y,X) f(y|A=0,Z=z,X) / int delta(t,X) f(t|A=0,Z=z,X) dt,
 ##   because the odds Pr(A=1|Y(0)=y,Z=z,X) / Pr(A=0|Y(0)=y,Z=z,X) equal
 ##   delta(y,X) gamma(z,X) and Z is independent of Y(0) given X.  At the
-##   fixed point this equals fYA1Z* of Data_Version1/1.SIV_JC.R ("Product").
+##   fixed point this equals fYA1Z* of Data_Version1/1.LSIV_JC.R ("Product").
 ##
 ## Every row is cross-fitted: unit i's densities come from the models fitted
-## on the fold that excludes i. SIV() keeps only the nuisances of its last
+## on the fold that excludes i. LSIV() keeps only the nuisances of its last
 ## cross-fitting repetition, so the fit must use one repetition.
 ## ---------------------------------------------------------------------------
 
-siv_conditional_densities <- function(fit) {
+lsiv_conditional_densities <- function(fit) {
   if (!identical(as.integer(fit$num_crossfit), 1L)) {
     stop("`fit` must use Overall.Estimation_num.crossfit = 1.", call. = FALSE)
   }
@@ -133,10 +133,10 @@ siv_conditional_densities <- function(fit) {
 
 ## ---------------------------------------------------------------------------
 ## Reference estimators. Copied unchanged from
-## Simulation_Version2_based_on_SIV_Package/Main/00_common.R.
+## ReplicationFiles/Simulation/00_common.R.
 ## ---------------------------------------------------------------------------
 
-siv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
+lsiv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
   X <- as.matrix(X)
   D <- cbind(`(Intercept)` = 1, A = A, X)
   Q <- cbind(`(Intercept)` = 1, Z = Z, X)
@@ -150,7 +150,7 @@ siv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
   c(estimate = b[2L], se = sqrt(V[2L, 2L]))
 }
 
-siv_fit_linear_model <- function(Y, A, Z, X) {
+lsiv_fit_linear_model <- function(Y, A, Z, X) {
   dat <- data.frame(Y = Y, A = A, Z = Z, as.data.frame(X))
   rhs <- paste(c("A", "Z", colnames(X)), collapse = " + ")
   fit <- lm(as.formula(paste("Y ~", rhs)), data = dat)
@@ -161,7 +161,7 @@ siv_fit_linear_model <- function(Y, A, Z, X) {
 ## The ignorability benchmark: the cross-fitted EIF estimator of tau_Ign with
 ## L = (Z, X) and glm nuisances fitted on the other folds. See the simulation
 ## copy of this function for the derivation.
-siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
+lsiv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
   X <- as.matrix(X)
   n <- length(Y)
   crossfit <- max(1L, as.integer(crossfit))

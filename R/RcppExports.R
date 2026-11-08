@@ -3,8 +3,8 @@
 
 #' Contraction solver for the fixed point of Theorem 3.2 (compiled)
 #'
-#' Compiled equivalent of the `"contraction"` branch of [siv_fixed_point()].
-#' Not intended to be called directly; [siv_fixed_point()] dispatches to it
+#' Compiled equivalent of the `"contraction"` branch of [lsiv_fixed_point()].
+#' Not intended to be called directly; [lsiv_fixed_point()] dispatches to it
 #' when the compiled code is available and falls back to the R implementation
 #' otherwise.
 #'
@@ -19,8 +19,8 @@
 #' @param tol Convergence tolerance on the weighted L1 change.
 #' @return A list with `g` (the fixed point), `iter` and `converged`.
 #' @keywords internal
-siv_contraction_cpp <- function(g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, maxit, tol) {
-    .Call(`_SIV_siv_contraction_cpp`, g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, maxit, tol)
+lsiv_contraction_cpp <- function(g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, maxit, tol) {
+    .Call(`_LSIV_lsiv_contraction_cpp`, g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, maxit, tol)
 }
 
 #' Delta-weighted grid integrals for the influence function (compiled)
@@ -28,7 +28,7 @@ siv_contraction_cpp <- function(g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, m
 #' Computes, in a single sweep over the `n x M` grid, the four integrals
 #' \eqn{\int \delta f}, \eqn{\int y \delta f}, \eqn{\int \delta^2 f} and
 #' \eqn{\int y \delta^2 f} against the supplied integration weights.  Compiled
-#' equivalent of the repeated `int_z()` calls in [siv_eif()].
+#' equivalent of the repeated `int_z()` calls in [lsiv_eif()].
 #'
 #' @param delta `n x M` matrix of odds-ratio values.
 #' @param grid Length-`M` outcome grid.
@@ -37,8 +37,8 @@ siv_contraction_cpp <- function(g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, m
 #' @return An `n x 4` matrix with columns
 #'   `denom`, `y`, `alpha`, `alphay`.
 #' @keywords internal
-siv_delta_moments_cpp <- function(delta, grid, fY, weights) {
-    .Call(`_SIV_siv_delta_moments_cpp`, delta, grid, fY, weights)
+lsiv_delta_moments_cpp <- function(delta, grid, fY, weights) {
+    .Call(`_LSIV_lsiv_delta_moments_cpp`, delta, grid, fY, weights)
 }
 
 #' Fast Gaussian kernel density ratio evaluation
@@ -55,8 +55,8 @@ siv_delta_moments_cpp <- function(delta, grid, fY, weights) {
 #' @param kernel_weights (N_centers)     weights from KLIEP fit
 #' @param n_threads      int             OpenMP threads (0 = all; ignored without OpenMP)
 #' @return numeric vector of length N_eval
-siv_gaussian_kernel_ratio <- function(x, centers, sigma, kernel_weights, n_threads = 0L) {
-    .Call(`_SIV_siv_gaussian_kernel_ratio`, x, centers, sigma, kernel_weights, n_threads)
+lsiv_gaussian_kernel_ratio <- function(x, centers, sigma, kernel_weights, n_threads = 0L) {
+    .Call(`_LSIV_lsiv_gaussian_kernel_ratio`, x, centers, sigma, kernel_weights, n_threads)
 }
 
 #' Fast Gaussian kernel matrix with per-dimension bandwidths
@@ -69,8 +69,8 @@ siv_gaussian_kernel_ratio <- function(x, centers, sigma, kernel_weights, n_threa
 #' @param sigma_vec (p)    per-dimension bandwidths
 #' @param n_threads int    OpenMP threads (0 = all; ignored without OpenMP)
 #' @return (N x M) kernel matrix
-siv_gaussian_kernel_matrix_bw <- function(x, centers, sigma_vec, n_threads = 0L) {
-    .Call(`_SIV_siv_gaussian_kernel_matrix_bw`, x, centers, sigma_vec, n_threads)
+lsiv_gaussian_kernel_matrix_bw <- function(x, centers, sigma_vec, n_threads = 0L) {
+    .Call(`_LSIV_lsiv_gaussian_kernel_matrix_bw`, x, centers, sigma_vec, n_threads)
 }
 
 #' Fast Gaussian kernel density ratio evaluation with per-dimension bandwidths
@@ -83,8 +83,8 @@ siv_gaussian_kernel_matrix_bw <- function(x, centers, sigma_vec, n_threads = 0L)
 #' @param kernel_weights (N_centers)     weights from KLIEP fit
 #' @param n_threads      int             OpenMP threads (0 = all; ignored without OpenMP)
 #' @return numeric vector of length N_eval
-siv_gaussian_kernel_ratio_bw <- function(x, centers, sigma_vec, kernel_weights, n_threads = 0L) {
-    .Call(`_SIV_siv_gaussian_kernel_ratio_bw`, x, centers, sigma_vec, kernel_weights, n_threads)
+lsiv_gaussian_kernel_ratio_bw <- function(x, centers, sigma_vec, kernel_weights, n_threads = 0L) {
+    .Call(`_LSIV_lsiv_gaussian_kernel_ratio_bw`, x, centers, sigma_vec, kernel_weights, n_threads)
 }
 
 #' KLIEP weight optimisation for fixed kernel matrices
@@ -96,8 +96,8 @@ siv_gaussian_kernel_ratio_bw <- function(x, centers, sigma_vec, kernel_weights, 
 #' @param phi_x2 (n2 x M) kernel matrix of the denominator sample
 #' @return numeric vector of length M of kernel weights
 #' @keywords internal
-siv_kliep_optimize_cpp <- function(phi_x1, phi_x2) {
-    .Call(`_SIV_siv_kliep_optimize_cpp`, phi_x1, phi_x2)
+lsiv_kliep_optimize_cpp <- function(phi_x1, phi_x2) {
+    .Call(`_LSIV_lsiv_kliep_optimize_cpp`, phi_x1, phi_x2)
 }
 
 #' Full KLIEP with per-dimension bandwidth selection (all in C++)
@@ -115,7 +115,7 @@ siv_kliep_optimize_cpp <- function(phi_x1, phi_x2) {
 #' @param fold       int      CV folds
 #' @param n_cd_iter  int      coordinate descent iterations
 #' @return List with kernel_weights (vec), sigma (vec), centers (mat)
-siv_kliep_bw_cpp <- function(x1, x2, centers, sigma_init, n_y_cols, cv_split, fold = 5L, n_cd_iter = 3L) {
-    .Call(`_SIV_siv_kliep_bw_cpp`, x1, x2, centers, sigma_init, n_y_cols, cv_split, fold, n_cd_iter)
+lsiv_kliep_bw_cpp <- function(x1, x2, centers, sigma_init, n_y_cols, cv_split, fold = 5L, n_cd_iter = 3L) {
+    .Call(`_LSIV_lsiv_kliep_bw_cpp`, x1, x2, centers, sigma_init, n_y_cols, cv_split, fold, n_cd_iter)
 }
 

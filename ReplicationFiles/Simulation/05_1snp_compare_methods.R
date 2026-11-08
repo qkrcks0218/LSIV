@@ -8,7 +8,7 @@ if(length(args) == 1){
   stop()
 }
 
-library(SIV)
+library(LSIV)
 source("00_1snp_common.R")
 
 REPS <- 1
@@ -45,14 +45,14 @@ message(sprintf("BATCH=%d: N=%d, type=%s, seed=%d",
 ## Script-local implementation of Supplement Section A.6.1, equation (S.29).
 ## Estimate e(X)=Pr(Z=1|X) and m0(X)=E(Y|Z=0,X) on training observations,
 ## then evaluate sum{(Z-e_hat)/(1-e_hat)*(Y-m0_hat)}/sum(A) out of fold.
-siv_fit_supp_one_sided <- function(Y, A, Z, X,
-                                   type = c("continuous", "binary"),
-                                   learner = c("SL", "glm"), SL.list = 1:9,
-                                   crossfit = 2L, num.crossfit = 1L,
-                                   trim = 1e-2) {
+lsiv_fit_supp_one_sided <- function(Y, A, Z, X,
+                                    type = c("continuous", "binary"),
+                                    learner = c("SL", "glm"), SL.list = 1:9,
+                                    crossfit = 2L, num.crossfit = 1L,
+                                    trim = 1e-2) {
   type <- match.arg(type)
   learner <- match.arg(learner)
-  checked <- getFromNamespace("siv_check_data", "SIV")(Y, A, Z, X)
+  checked <- getFromNamespace("lsiv_check_data", "LSIV")(Y, A, Z, X)
   Y <- checked$Y; A <- checked$A; Z <- checked$Z; X <- checked$X
   n <- length(Y)
   if (any(A > Z)) {
@@ -77,9 +77,9 @@ siv_fit_supp_one_sided <- function(Y, A, Z, X,
     stop("trim must lie in (0, 0.5).", call. = FALSE)
   }
 
-  make_folds <- getFromNamespace("siv_make_folds", "SIV")
-  fit_nuisance <- getFromNamespace("siv_learn_fit", "SIV")
-  predict_nuisance <- getFromNamespace("siv_learn_predict", "SIV")
+  make_folds <- getFromNamespace("lsiv_make_folds", "LSIV")
+  fit_nuisance <- getFromNamespace("lsiv_learn_fit", "LSIV")
+  predict_nuisance <- getFromNamespace("lsiv_learn_predict", "LSIV")
   df <- data.frame(Y = Y, Z = Z, X, check.names = FALSE)
   xnames <- colnames(X)
   outcome_family <- if (type == "binary") stats::binomial() else
@@ -120,7 +120,7 @@ siv_fit_supp_one_sided <- function(Y, A, Z, X,
          folds = folds, n_trimmed = n_trimmed)
   })
 
-  ## Use the same repeated-split median adjustment as the SIV comparison.
+  ## Use the same repeated-split median adjustment as the LSIV comparison.
   estimates <- vapply(splits, function(x) x$estimate, numeric(1))
   variances <- vapply(splits, function(x) x$variance, numeric(1))
   estimate <- stats::median(estimates)
@@ -136,7 +136,7 @@ run_method <- function(method, estimand, truth, code) {
   started <- proc.time()[[3L]]
   value <- withCallingHandlers(
     tryCatch(force(code), error = function(e) {
-      structure(list(message = conditionMessage(e)), class = "siv_run_error")
+      structure(list(message = conditionMessage(e)), class = "lsiv_run_error")
     }),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))
@@ -144,7 +144,7 @@ run_method <- function(method, estimand, truth, code) {
     }
   )
   seconds <- proc.time()[[3L]] - started
-  if (inherits(value, "siv_run_error")) {
+  if (inherits(value, "lsiv_run_error")) {
     return(data.frame(
       method = method, estimand = estimand, truth = truth,
       estimate = NA_real_, se = NA_real_,
@@ -171,13 +171,13 @@ run_method <- function(method, estimand, truth, code) {
 
 fit_one_dataset <- function(d, type, truth) {
   holder <- new.env(parent = emptyenv())
-  holder$siv <- NULL
+  holder$lsiv <- NULL
   rows <- list()
   
   ## Package methods: the calls are kept explicit so the comparison settings
   ## can be audited at a glance. SL_LIST includes learner groups 1 through 9.
-  rows[["SIV"]] <- run_method("SIV", "ATT", truth["ATT"], {
-    fit <- SIV::SIV(
+  rows[["LSIV"]] <- run_method("LSIV", "ATT", truth["ATT"], {
+    fit <- LSIV::LSIV(
       d$Y, d$A, d$Z, d$X,
       y_type = type,
       Overall.Estimation_SL.list = SL_LIST,
@@ -188,40 +188,40 @@ fit_one_dataset <- function(d, type, truth) {
       ratio_bandwidth = "cv_common",
       ratio_bandwidth.cv.grid = BW_QUANTILE
     )
-    holder$siv <- fit
+    holder$lsiv <- fit
     diagnostic_ok <- fit$diagnostics[["g_floor_frac"]] <= 1e-3 &&
       fit$diagnostics[["min_relevance"]] >= 1e-3
-    list(estimate = stats::coef(fit)["ATT"], se = SIV::siv_se(fit)["ATT"],
+    list(estimate = stats::coef(fit)["ATT"], se = LSIV::lsiv_se(fit)["ATT"],
          ok = fit$converged && diagnostic_ok)
   })
   
   ## Constant assignment in this one-sided DGP makes LATE equal to ATT.
-  rows[["SIV_LATE"]] <- run_method("SIV_LATE", "ATT", truth["ATT"], {
-    fit <- SIV::SIV_LATE(
+  rows[["LSIV_LATE"]] <- run_method("LSIV_LATE", "ATT", truth["ATT"], {
+    fit <- LSIV::LSIV_LATE(
       d$Y, d$A, d$Z, d$X,
       learner = "SL", SL.list = SL_LIST,
       crossfit = 2L
     )
-    list(estimate = stats::coef(fit)["LATE"], se = SIV::siv_se(fit)["LATE"],
+    list(estimate = stats::coef(fit)["LATE"], se = LSIV::lsiv_se(fit)["LATE"],
          ok = fit$converged && abs(fit$first_stage) >= 1e-3)
   })
   
-  rows[["SIV_one_sided"]] <- run_method(
-    "SIV_one_sided", "ATT", truth["ATT"], {
-      siv_fit_supp_one_sided(
+  rows[["LSIV_one_sided"]] <- run_method(
+    "LSIV_one_sided", "ATT", truth["ATT"], {
+      lsiv_fit_supp_one_sided(
         d$Y, d$A, d$Z, d$X, type = type,
         learner = "SL", SL.list = SL_LIST,
         crossfit = NUM_FOLDS, num.crossfit = NUM_CROSSFIT
       )
     })
   
-  do.call(rbind, rows[c("SIV", "SIV_one_sided", "SIV_LATE")])
+  do.call(rbind, rows[c("LSIV", "LSIV_one_sided", "LSIV_LATE")])
 }
 
 truths <- lapply(TYPES, function(type) {
   message(sprintf("Computing %s reference values with %s draws ...", type,
                   format(TRUTH_N, big.mark = ",", scientific = FALSE)))
-  siv_compute_truths(type, n = TRUTH_N, seed = SEED)
+  lsiv_compute_truths(type, n = TRUTH_N, seed = SEED)
 })
 names(truths) <- TYPES
 
@@ -230,7 +230,7 @@ for (type in TYPES) {
   for (r in seq_len(REPS)) {
     message(sprintf("[%s] replication %d/%d", type, r, REPS))
     set.seed(SEED + 10000L * match(type, TYPES) + r)
-    d <- siv_dgp(N, type)
+    d <- lsiv_dgp(N, type)
     set.seed(SEED + 20000L * match(type, TYPES) + r)
     one <- fit_one_dataset(d, type, truths[[type]])
     one$type <- type
@@ -241,7 +241,7 @@ for (type in TYPES) {
 }
 raw <- do.call(rbind, raw)
 rownames(raw) <- NULL
-summary <- siv_summarise_results(raw)
+summary <- lsiv_summarise_results(raw)
 
 raw.seed <- cbind(SEED,raw)
 colnames(raw.seed) <- c("seed",colnames(raw))

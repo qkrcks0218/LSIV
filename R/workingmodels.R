@@ -4,7 +4,7 @@
 ## All three competing papers replace one or more infinite-dimensional nuisance
 ## functions by a parametric working model and solve a system of estimating
 ## equations.  This file collects
-##   * the outcome-density working model  f(y | .; eta)   (`siv_ydens_*`), and
+##   * the outcome-density working model  f(y | .; eta)   (`lsiv_ydens_*`), and
 ##   * the exponential-tilting integrals
 ##       E[ exp{s * psi(Y)} v(Y) | . ]
 ##     that all three papers require (Liu et al. 2021 eq. (4.6);
@@ -29,7 +29,7 @@
 ## ----------------------------------------------------------------------------
 
 ## Internal: number of free parameters of the outcome-density working model.
-siv_ydens_npar <- function(family, D, support) {
+lsiv_ydens_npar <- function(family, D, support) {
   switch(family,
          binomial = ncol(D) * (length(support) - 1L),
          gaussian = ncol(D) + 1L,
@@ -38,7 +38,7 @@ siv_ydens_npar <- function(family, D, support) {
 
 ## Internal: starting values for the outcome-density working model, obtained by
 ## a (possibly weighted) fit on the subset for which Y is observed.
-siv_ydens_start <- function(family, D, y, subset, support, weights = NULL) {
+lsiv_ydens_start <- function(family, D, y, subset, support, weights = NULL) {
   if (is.null(weights)) weights <- rep(1, length(y))
   switch(family,
     binomial = {
@@ -63,10 +63,10 @@ siv_ydens_start <- function(family, D, y, subset, support, weights = NULL) {
 
 ## Internal: probability mass / density of the working model at the observed y.
 ## Returns a length-n vector.
-siv_ydens_pdf <- function(family, par, D, y, support) {
+lsiv_ydens_pdf <- function(family, par, D, y, support) {
   switch(family,
     binomial = {
-      P <- siv_ydens_grid(family, par, D, support)
+      P <- lsiv_ydens_grid(family, par, D, support)
       idx <- vapply(y, function(v) which.min(abs(support - v)), integer(1L))
       P[cbind(seq_along(y), idx)]
     },
@@ -78,8 +78,8 @@ siv_ydens_pdf <- function(family, par, D, y, support) {
 }
 
 ## Internal: probability mass function on the support (binomial only), n x M.
-siv_ydens_grid <- function(family, par, D, support) {
-  if (family != "binomial") stop("`siv_ydens_grid()` requires family = \"binomial\".")
+lsiv_ydens_grid <- function(family, par, D, support) {
+  if (family != "binomial") stop("`lsiv_ydens_grid()` requires family = \"binomial\".")
   M <- length(support)
   k <- ncol(D)
   eta <- matrix(0, nrow(D), M)          # first support point is the reference
@@ -95,11 +95,11 @@ siv_ydens_grid <- function(family, par, D, support) {
 ## Internal: per-observation score of the outcome-density working model,
 ## restricted to `subset` (an n-vector of 0/1 or logical weights).  Returns an
 ## n x npar matrix whose column means vanish at the restricted MLE.
-siv_ydens_score <- function(family, par, D, y, support, subset_w) {
+lsiv_ydens_score <- function(family, par, D, y, support, subset_w) {
   n <- nrow(D)
   switch(family,
     binomial = {
-      P <- siv_ydens_grid(family, par, D, support)
+      P <- lsiv_ydens_grid(family, par, D, support)
       k <- ncol(D)
       out <- matrix(0, n, k * (length(support) - 1L))
       for (m in seq_len(length(support) - 1L)) {
@@ -133,16 +133,16 @@ siv_ydens_score <- function(family, par, D, y, support, subset_w) {
 ## `sgn = -1` gives Sun et al. (2021) eq. (4.5) / Sun, Miao and Wickramarachchi
 ## (2025) eq. (2.4)
 ##   p(y|R=0,x) = exp(-h) p(y|R=1,x) / E[exp(-h) | R=1,x].
-siv_tilt_moments <- function(family, par, D, support, basis_spec, X, psi,
-                             vfun, sgn = 1, n_nodes = 20L) {
+lsiv_tilt_moments <- function(family, par, D, support, basis_spec, X, psi,
+                              vfun, sgn = 1, n_nodes = 20L) {
   n <- nrow(D)
   if (family == "binomial") {
-    P <- siv_ydens_grid(family, par, D, support)        # n x M
+    P <- lsiv_ydens_grid(family, par, D, support)        # n x M
     M <- length(support)
     den <- numeric(n)
     numl <- NULL
     for (m in seq_len(M)) {
-      b <- siv_basis_eval(basis_spec, rep(support[m], n), X)   # n x q
+      b <- lsiv_basis_eval(basis_spec, rep(support[m], n), X)   # n x q
       w <- exp(sgn * as.vector(b %*% psi)) * P[, m]
       den <- den + w
       vm <- vfun(rep(support[m], n))
@@ -156,12 +156,12 @@ siv_tilt_moments <- function(family, par, D, support, basis_spec, X, psi,
   k <- ncol(D)
   s <- abs(par[k + 1L])
   mu <- as.vector(D %*% par[seq_len(k)])
-  gh <- siv_gh_normal(mu, s, n_nodes)
+  gh <- lsiv_gh_normal(mu, s, n_nodes)
   den <- numeric(n)
   numl <- NULL
   for (kk in seq_along(gh$weights)) {
     yk <- gh$nodes[, kk]
-    b <- siv_basis_eval(basis_spec, yk, X)
+    b <- lsiv_basis_eval(basis_spec, yk, X)
     w <- exp(sgn * as.vector(b %*% psi)) * gh$weights[kk]
     den <- den + w
     vk <- as.matrix(vfun(yk))
@@ -174,8 +174,8 @@ siv_tilt_moments <- function(family, par, D, support, basis_spec, X, psi,
 ## Internal: split the non-intercept columns of a baseline design matrix into
 ## those that involve the instrument (h1, in the notation of Liu et al. 2021,
 ## eqs. 4.3 and 4.5) and those that do not (h2, eq. 4.4).
-siv_split_ZC <- function(formula, data) {
-  mm <- siv_model_matrix(formula, data)
+lsiv_split_ZC <- function(formula, data) {
+  mm <- lsiv_model_matrix(formula, data)
   asg <- attr(mm, "assign")
   tl <- attr(stats::terms(formula, data = data), "term.labels")
   has_int <- "(Intercept)" %in% colnames(mm)

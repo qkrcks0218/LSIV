@@ -1,5 +1,5 @@
 ## ----------------------------------------------------------------------------
-## MySL(): the Super Learner wrapper of the UDID package, ported to SIV.
+## MySL(): the Super Learner wrapper of the UDID package, ported to LSIV.
 ##
 ## This file is a PORT of `UDID_Package/R/MySL.R` (Park & Tchetgen Tchetgen,
 ## "A Universal Nonparametric Framework for Difference-in-Differences
@@ -9,7 +9,7 @@
 ## package plumbing differs:
 ##
 ##   1. `SuperLearner:::predict.SL.*` (triple colon) is replaced by
-##      `siv_sl_ns()`, a thin `getFromNamespace()` helper.  The triple-colon
+##      `lsiv_sl_ns()`, a thin `getFromNamespace()` helper.  The triple-colon
 ##      form is flagged by `R CMD check`; the helper is not, and resolves to
 ##      exactly the same functions.
 ##   2. Every optional base-learner package is checked at run time. `MySL()`
@@ -21,18 +21,18 @@
 ##      Porting dead, non-running code into a checked package would only
 ##      generate `R CMD check` notes.
 ##
-## Probability bounding is done by the callers through `siv_bound_prob()`,
+## Probability bounding is done by the callers through `lsiv_bound_prob()`,
 ## exactly as in UDID (`bound_prob()` in `UDID_nonparametric.R`); `PS.thr` is
 ## retained in the signature for interface compatibility.
 ## ----------------------------------------------------------------------------
 
 ## Internal: resolve an unexported SuperLearner object by name.  Equivalent to
 ## `SuperLearner:::<name>` but acceptable to `R CMD check`.
-siv_sl_ns <- function(name) utils::getFromNamespace(name, "SuperLearner")
+lsiv_sl_ns <- function(name) utils::getFromNamespace(name, "SuperLearner")
 
 ## Internal: packages required by each of the nine learner groups of `MySL()`.
 ## Group 1 needs SuperLearner only (SL.glm is built on stats::glm).
-siv_sl_requires <- list(
+lsiv_sl_requires <- list(
   `1` = character(0),
   `2` = "glmnet",
   `3` = "earth",
@@ -45,7 +45,7 @@ siv_sl_requires <- list(
 )
 
 ## Internal: drop the learner groups whose packages are not installed.
-siv_sl_available <- function(SL.list) {
+lsiv_sl_available <- function(SL.list) {
   SL.list <- as.integer(SL.list)
   bad <- SL.list[SL.list < 1L | SL.list > 9L]
   if (length(bad)) {
@@ -53,11 +53,11 @@ siv_sl_available <- function(SL.list) {
          paste(bad, collapse = ", "), ".", call. = FALSE)
   }
   ok <- vapply(SL.list, function(g) {
-    pk <- siv_sl_requires[[as.character(g)]]
+    pk <- lsiv_sl_requires[[as.character(g)]]
     !length(pk) || all(vapply(pk, requireNamespace, logical(1), quietly = TRUE))
   }, logical(1))
   if (!all(ok)) {
-    miss <- unique(unlist(siv_sl_requires[as.character(SL.list[!ok])]))
+    miss <- unique(unlist(lsiv_sl_requires[as.character(SL.list[!ok])]))
     miss <- miss[!vapply(miss, requireNamespace, logical(1), quietly = TRUE)]
     warning("MySL(): dropping learner group(s) ",
             paste(SL.list[!ok], collapse = ", "),
@@ -86,16 +86,16 @@ siv_sl_available <- function(SL.list) {
 #' @return `pmin(pmax(p, tol), 1 - tol)`, with non-finite entries replaced by
 #'   `0.5`.
 #' @examples
-#' siv_bound_prob(c(-0.1, 0.0005, 0.5, 1.2), tol = 0.01)
+#' lsiv_bound_prob(c(-0.1, 0.0005, 0.5, 1.2), tol = 0.01)
 #' @export
-siv_bound_prob <- function(p, tol = 1e-3) {
+lsiv_bound_prob <- function(p, tol = 1e-3) {
   p <- as.numeric(p)
   p[!is.finite(p)] <- 0.5
   pmin(pmax(p, tol), 1 - tol)
 }
 
 ## Internal: Super Learner tuning used by the Version1 replication code.
-siv_mysl_tuning <- function(N) {
+lsiv_mysl_tuning <- function(N) {
   SL.hpara <- list()
   SL.hpara$MLPL <- c(1, 2)
   SL.hpara$MTRY <- c(1, 2)
@@ -106,8 +106,8 @@ siv_mysl_tuning <- function(N) {
 
 ## Internal: complete learner grids used by Data_Version1.  Keeping them in a
 ## small data-only helper makes parity testable without fitting every learner.
-siv_mysl_library_tuning <- function(N) {
-  h <- siv_mysl_tuning(N)
+lsiv_mysl_library_tuning <- function(N) {
+  h <- lsiv_mysl_tuning(N)
   list(
     glmnet = list(alpha = c(1, 0.5, 0), useMin = c(TRUE, FALSE)),
     earth = list(degree = 1:5),
@@ -122,7 +122,7 @@ siv_mysl_library_tuning <- function(N) {
 }
 
 ## Internal: caret preprocessing used by the Version1 GBM and MLP wrappers.
-siv_mysl_preprocess <- function() c("center", "scale", "pca")
+lsiv_mysl_preprocess <- function() c("center", "scale", "pca")
 
 #' Super Learner Wrapper
 #'
@@ -132,9 +132,9 @@ siv_mysl_preprocess <- function() c("center", "scale", "pca")
 #'
 #' This is the `MySL()` wrapper of the \pkg{UDID} package, ported unchanged in
 #' its statistical content; see the file header of `R/mysl.R` for the list of
-#' plumbing adaptations.  Within \pkg{SIV} it supplies the nuisance-function
-#' estimates of [SIV()] and [SIV_LATE()]. [SIV()] always uses this wrapper,
-#' while [SIV_LATE()] exposes a learner choice.
+#' plumbing adaptations.  Within \pkg{LSIV} it supplies the nuisance-function
+#' estimates of [LSIV()] and [LSIV_LATE()]. [LSIV()] always uses this wrapper,
+#' while [LSIV_LATE()] exposes a learner choice.
 #'
 #' @param Data A data frame containing the outcome and covariates.
 #' @param locY Column index for the outcome variable.
@@ -145,13 +145,13 @@ siv_mysl_preprocess <- function() c("center", "scale", "pca")
 #'   4 = GAM, 5 = xgboost, 6 = polynomial spline, 7 = random forest,
 #'   8 = gbm, 9 = 1-layer MLP.  Groups whose packages are not installed are
 #'   dropped with a warning, because every machine-learning package is a
-#'   *suggested*, not a required, dependency of \pkg{SIV}.
+#'   *suggested*, not a required, dependency of \pkg{LSIV}.
 #' @param obsWeights Optional observation weights.
 #' @param SL.N Sample size used to set the Version1 GBM minimum-node tuning
-#'   value. `SIV()` supplies the full analysis sample size.
+#'   value. `LSIV()` supplies the full analysis sample size.
 #' @param PS.thr Propensity score threshold (default 1e-3).  Retained for
 #'   interface compatibility with the \pkg{UDID} version; probability bounding
-#'   is applied by the callers through [siv_bound_prob()].
+#'   is applied by the callers through [lsiv_bound_prob()].
 #' @param CVlist Optional list of cross-validation fold assignments.
 #'
 #' @details
@@ -220,10 +220,10 @@ MySL <- function( Data, locY, locX, Ydist=stats::gaussian(),
   }
 
   ## Soft dependencies: keep only the learner groups that are installed.
-  SL.list <- siv_sl_available(SL.list)
+  SL.list <- lsiv_sl_available(SL.list)
 
-  SL.tune <- siv_mysl_library_tuning(SL.N)
-  SL.preprocess <- siv_mysl_preprocess()
+  SL.tune <- lsiv_mysl_library_tuning(SL.N)
+  SL.preprocess <- lsiv_mysl_preprocess()
 
   Learners <- list()
 
@@ -463,15 +463,15 @@ MySL <- function( Data, locY, locX, Ydist=stats::gaussian(),
     SL.nnet           = SuperLearner::SL.nnet,
     SL.xgboost        = SuperLearner::SL.xgboost,
     ## Predict methods (unexported in SuperLearner; resolved by name)
-    predict.SL.glm       = siv_sl_ns("predict.SL.glm"),
-    predict.SL.glmnet    = siv_sl_ns("predict.SL.glmnet"),
-    predict.SL.gam       = siv_sl_ns("predict.SL.gam"),
-    predict.SL.polymars  = siv_sl_ns("predict.SL.polymars"),
-    predict.SL.ranger    = siv_sl_ns("predict.SL.ranger"),
-    predict.SL.nnet      = siv_sl_ns("predict.SL.nnet"),
-    predict.SL.xgboost   = siv_sl_ns("predict.SL.xgboost"),
-    predict.SL.caret     = siv_sl_ns("predict.SL.caret"),
-    predict.SL.earth     = siv_sl_ns("predict.SL.earth"),
+    predict.SL.glm       = lsiv_sl_ns("predict.SL.glm"),
+    predict.SL.glmnet    = lsiv_sl_ns("predict.SL.glmnet"),
+    predict.SL.gam       = lsiv_sl_ns("predict.SL.gam"),
+    predict.SL.polymars  = lsiv_sl_ns("predict.SL.polymars"),
+    predict.SL.ranger    = lsiv_sl_ns("predict.SL.ranger"),
+    predict.SL.nnet      = lsiv_sl_ns("predict.SL.nnet"),
+    predict.SL.xgboost   = lsiv_sl_ns("predict.SL.xgboost"),
+    predict.SL.caret     = lsiv_sl_ns("predict.SL.caret"),
+    predict.SL.earth     = lsiv_sl_ns("predict.SL.earth"),
     ## Custom learners defined in this function
     SL.caret.SLP      = SL.caret.SLP,
     SL.caret.MLP      = SL.caret.MLP,

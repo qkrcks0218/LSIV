@@ -8,7 +8,7 @@ if(length(args) == 1){
   stop()
 }
 
-library(SIV)
+library(LSIV)
 source("00_common.R")
 
 ## Paired comparison of the seven requested methods.
@@ -52,7 +52,7 @@ run_method <- function(method, estimand, truth, code) {
   started <- proc.time()[[3L]]
   value <- withCallingHandlers(
     tryCatch(force(code), error = function(e) {
-      structure(list(message = conditionMessage(e)), class = "siv_run_error")
+      structure(list(message = conditionMessage(e)), class = "lsiv_run_error")
     }),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))
@@ -60,7 +60,7 @@ run_method <- function(method, estimand, truth, code) {
     }
   )
   seconds <- proc.time()[[3L]] - started
-  if (inherits(value, "siv_run_error")) {
+  if (inherits(value, "lsiv_run_error")) {
     return(data.frame(
       method = method, estimand = estimand, truth = truth,
       estimate = NA_real_, se = NA_real_,
@@ -87,13 +87,13 @@ run_method <- function(method, estimand, truth, code) {
 
 fit_one_dataset <- function(d, type, truth) {
   holder <- new.env(parent = emptyenv())
-  holder$siv <- NULL
+  holder$lsiv <- NULL
   rows <- list()
   
   ## Package methods: the calls are kept explicit so the comparison settings
   ## can be audited at a glance. SL_LIST includes learner groups 1 through 9.
-  rows[["SIV"]] <- run_method("SIV", "ATT", truth["ATT"], {
-    fit <- SIV::SIV(
+  rows[["LSIV"]] <- run_method("LSIV", "ATT", truth["ATT"], {
+    fit <- LSIV::LSIV(
       d$Y, d$A, d$Z, d$X,
       y_type = type,
       Overall.Estimation_SL.list = SL_LIST,
@@ -104,63 +104,63 @@ fit_one_dataset <- function(d, type, truth) {
       ratio_bandwidth = "cv_common",
       ratio_bandwidth.cv.grid = BW_QUANTILE
     )
-    holder$siv <- fit
+    holder$lsiv <- fit
     diagnostic_ok <- fit$diagnostics[["g_floor_frac"]] <= 1e-3 &&
       fit$diagnostics[["min_relevance"]] >= 1e-3
-    list(estimate = stats::coef(fit)["ATT"], se = SIV::siv_se(fit)["ATT"],
+    list(estimate = stats::coef(fit)["ATT"], se = LSIV::lsiv_se(fit)["ATT"],
          ok = fit$converged && diagnostic_ok)
   })
   
-  rows[["SIV_Liu"]] <- run_method("SIV_Liu", "ATT", truth["ATT"], {
-    fit <- SIV::SIV_Liu(
+  rows[["LSIV_Liu"]] <- run_method("LSIV_Liu", "ATT", truth["ATT"], {
+    fit <- LSIV::LSIV_Liu(
       d$Y, d$A, d$Z, d$X,
       estimator = "dr", outcome_type = type,
-      basis = SIV::siv_basis_spec("linear"), n_nodes = 12L
+      basis = LSIV::lsiv_basis_spec("linear"), n_nodes = 12L
     )
-    list(estimate = stats::coef(fit)["ETT"], se = SIV::siv_se(fit)["ETT"],
+    list(estimate = stats::coef(fit)["ETT"], se = LSIV::lsiv_se(fit)["ETT"],
          ok = fit$converged && all(fit$checks))
   })
   
-  rows[["SIV_Sun"]] <- run_method("SIV_Sun", "ATT", truth["ATT"], {
-    fit <- SIV::SIV_Sun(
+  rows[["LSIV_Sun"]] <- run_method("LSIV_Sun", "ATT", truth["ATT"], {
+    fit <- LSIV::LSIV_Sun(
       d$Y, d$A, d$Z, d$X,
       outcome_type = type,
-      basis = SIV::siv_basis_spec("linear"), n_nodes = 12L
+      basis = LSIV::lsiv_basis_spec("linear"), n_nodes = 12L
     )
-    list(estimate = stats::coef(fit)["ATT"], se = SIV::siv_se(fit)["ATT"],
+    list(estimate = stats::coef(fit)["ATT"], se = LSIV::lsiv_se(fit)["ATT"],
          ok = fit$converged && all(fit$checks))
   })
   
   ## Deliberately score the LATE estimate against ATT: this quantifies the
   ## error from using conventional IV/LATE as a proxy for the ATT target.
-  rows[["SIV_LATE"]] <- run_method("SIV_LATE", "ATT", truth["ATT"], {
-    fit <- SIV::SIV_LATE(
+  rows[["LSIV_LATE"]] <- run_method("LSIV_LATE", "ATT", truth["ATT"], {
+    fit <- LSIV::LSIV_LATE(
       d$Y, d$A, d$Z, d$X,
       learner = "SL", SL.list = SL_LIST,
       crossfit = 2L
     )
-    list(estimate = stats::coef(fit)["LATE"], se = SIV::siv_se(fit)["LATE"],
+    list(estimate = stats::coef(fit)["LATE"], se = LSIV::lsiv_se(fit)["LATE"],
          ok = fit$converged && abs(fit$first_stage) >= 1e-3)
   })
   
-  ## Reference methods. They are intentionally not added to SIV_Package.
+  ## Reference methods. They are intentionally not added to the LSIV package.
   ## Likewise, score the 2SLS coefficient against ATT rather than its own
   ## population projection to measure its error as an ATT proxy.
   rows[["2SLS"]] <- run_method(
     "2SLS", "ATT", truth["ATT"], {
-      ans <- siv_fit_2sls(d$Y, d$A, d$Z, d$X)
+      ans <- lsiv_fit_2sls(d$Y, d$A, d$Z, d$X)
       list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
     })
   
   ## Ignorability benchmark: a self-contained cross-fitted EIF estimator with
-  ## glm nuisances, so it no longer borrows SIV's fitted functions.
+  ## glm nuisances, so it no longer borrows LSIV's fitted functions.
   rows[["Ign"]] <- run_method("Ign", "ATT", truth["ATT"], {
-    ans <- siv_fit_ignorability(d$Y, d$A, d$Z, d$X, crossfit = 2L)
+    ans <- lsiv_fit_ignorability(d$Y, d$A, d$Z, d$X, crossfit = 2L)
     list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
   })
   
   rows[["linear model"]] <- run_method("linear model", "ATT", truth["ATT"], {
-    ans <- siv_fit_linear_model(d$Y, d$A, d$Z, d$X)
+    ans <- lsiv_fit_linear_model(d$Y, d$A, d$Z, d$X)
     list(estimate = ans["estimate"], se = ans["se"], ok = TRUE)
   })
   
@@ -170,7 +170,7 @@ fit_one_dataset <- function(d, type, truth) {
 truths <- lapply(TYPES, function(type) {
   message(sprintf("Computing %s reference values with %s draws ...", type,
                   format(TRUTH_N, big.mark = ",", scientific = FALSE)))
-  siv_compute_truths(type, n = TRUTH_N, seed = SEED)
+  lsiv_compute_truths(type, n = TRUTH_N, seed = SEED)
 })
 names(truths) <- TYPES
 
@@ -179,7 +179,7 @@ for (type in TYPES) {
   for (r in seq_len(REPS)) {
     message(sprintf("[%s] replication %d/%d", type, r, REPS))
     set.seed(SEED + 10000L * match(type, TYPES) + r)
-    d <- siv_dgp(N, type)
+    d <- lsiv_dgp(N, type)
     set.seed(SEED + 20000L * match(type, TYPES) + r)
     one <- fit_one_dataset(d, type, truths[[type]])
     one$type <- type
@@ -190,7 +190,7 @@ for (type in TYPES) {
 }
 raw <- do.call(rbind, raw)
 rownames(raw) <- NULL
-summary <- siv_summarise_results(raw)
+summary <- lsiv_summarise_results(raw)
 
 raw.seed <- cbind(SEED,raw)
 colnames(raw.seed) <- c("seed",colnames(raw))

@@ -4,15 +4,15 @@
 test_that("the generalized counterfactual EIF reproduces the ATT EIF algebra", {
   set.seed(81)
   d <- test_dgp(350, "continuous")
-  g <- siv_grid(d$Y, d$A, "continuous", n_grid = 81,
-                include_observed = FALSE)
+  g <- lsiv_grid(d$Y, d$A, "continuous", n_grid = 81,
+                 include_observed = FALSE)
   nu <- test_oracle_nuisance(d$X, g$grid, g$weights, "continuous")
-  fp <- siv_fixed_point(nu$pA1_z0, nu$pA1_z1, nu$fY_z0, nu$fY_z1,
-                        g$grid, g$weights, dr_floor = 0)
-  ef <- siv_eif(d$Y, d$A, d$Z, g$grid, g$weights, fp$delta,
-                fp$gamma_z0, fp$gamma_z1, fp$fY_z0, fp$fY_z1,
-                nu$pZ1, nu$pA1_z0, nu$pA1_z1)
-  cf <- siv_cf_functionals(
+  fp <- lsiv_fixed_point(nu$pA1_z0, nu$pA1_z1, nu$fY_z0, nu$fY_z1,
+                         g$grid, g$weights, dr_floor = 0)
+  ef <- lsiv_eif(d$Y, d$A, d$Z, g$grid, g$weights, fp$delta,
+                 fp$gamma_z0, fp$gamma_z1, fp$fY_z0, fp$fY_z1,
+                 nu$pZ1, nu$pA1_z0, nu$pA1_z1)
+  cf <- lsiv_cf_functionals(
     d$Y, d$A, d$Z, g$grid, g$weights, fp$delta, fp$fY_z0, fp$fY_z1,
     nu$pZ1, nu$pA1_z0, nu$pA1_z1,
     G_grid = matrix(g$grid, ncol = 1L),
@@ -24,13 +24,13 @@ test_that("the generalized counterfactual EIF reproduces the ATT EIF algebra", {
                mean(d$A * d$Y - ef$num) / mean(d$A), tolerance = 1e-10)
 })
 
-test_that("SIV returns selected ATT and QTT estimates with Berger-Boos CIs", {
+test_that("LSIV returns selected ATT and QTT estimates with Berger-Boos CIs", {
   set.seed(82)
   d <- test_dgp(700, "continuous")
-  g <- siv_grid(d$Y, d$A, "continuous", n_grid = 101,
-                include_observed = FALSE)
+  g <- lsiv_grid(d$Y, d$A, "continuous", n_grid = 101,
+                 include_observed = FALSE)
   nu <- test_oracle_nuisance(d$X, g$grid, g$weights, "continuous")
-  f <- siv_estimate(
+  f <- lsiv_estimate(
     d$Y, d$A, d$Z, d$X, type = "continuous", nuisance = nu,
     grid = g$grid, weights = g$weights,
     estimand = c("ATT", "QTT"), QTT.quantile = c(0.25, 0.5, 0.75),
@@ -49,7 +49,7 @@ test_that("SIV returns selected ATT and QTT estimates with Berger-Boos CIs", {
                   f$qtt$treated_quantile_ci[, 2L]))
   expect_output(print(f), "Berger")
 
-  qtt_only <- siv_estimate(
+  qtt_only <- lsiv_estimate(
     d$Y, d$A, d$Z, d$X, type = "continuous", nuisance = nu,
     grid = g$grid, weights = g$weights, estimand = "QTT",
     QTT.quantile = 0.5, QTT.c1 = 0.005, num.QTT = 39
@@ -63,20 +63,20 @@ test_that("empty QTT inversion uses specified support or an unbounded interval",
   threshold <- 0:5
   treated_ci <- c(lower = 3, upper = 4)
 
-  empty_ci <- siv_qtt_ci(integer(0), threshold, treated_ci, Y)
+  empty_ci <- lsiv_qtt_ci(integer(0), threshold, treated_ci, Y)
   expect_equal(empty_ci, c(lower = -Inf, upper = Inf))
-  expect_equal(siv_qtt_ci(integer(0), threshold, treated_ci, Y,
-                          support = threshold),
+  expect_equal(lsiv_qtt_ci(integer(0), threshold, treated_ci, Y,
+                           support = threshold),
                c(lower = -2, upper = 4))
 
-  accepted_ci <- siv_qtt_ci(c(2L, 4L), threshold, treated_ci, Y)
+  accepted_ci <- lsiv_qtt_ci(c(2L, 4L), threshold, treated_ci, Y)
   expect_equal(accepted_ci, c(lower = 0, upper = 3))
 })
 
-test_that("SIV median-combines repeated QTT estimates and Berger-Boos intervals", {
+test_that("LSIV median-combines repeated QTT estimates and Berger-Boos intervals", {
   set.seed(821)
   d <- test_dgp(500, "binary")
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, d$X, y_type = "binary",
     estimand = c("ATT", "QTT"), QTT_quantile = 0.5,
     QTT_c1 = 0.005, QTT_numBB = 19L,
@@ -109,7 +109,7 @@ test_that("SIV median-combines repeated QTT estimates and Berger-Boos intervals"
 test_that("the ATT-only API remains backward compatible", {
   set.seed(83)
   d <- test_dgp(350, "binary")
-  f <- SIV(d$Y, d$A, d$Z, d$X, y_type = "binary")
+  f <- LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary")
   expect_named(f$estimate, "ATT")
   expect_named(f$ci, c("lower", "upper"))
   expect_equal(dim(f$vcov), c(1L, 1L))
@@ -120,9 +120,9 @@ test_that("the ATT-only API remains backward compatible", {
 test_that("the falsification test builds the requested marginal dictionary", {
   set.seed(84)
   d <- test_dgp(500, "binary", p = 2L)
-  g <- siv_grid(d$Y, d$A, "binary")
+  g <- lsiv_grid(d$Y, d$A, "binary")
   nu <- test_oracle_nuisance(d$X, g$grid, g$weights, "binary")
-  f <- siv_estimate(
+  f <- lsiv_estimate(
     d$Y, d$A, d$Z, d$X, type = "binary", nuisance = nu,
     grid = g$grid, weights = g$weights, falsification = TRUE,
     num.false.boot = 59
@@ -153,15 +153,15 @@ test_that("the falsification test builds the requested marginal dictionary", {
 })
 
 test_that("the falsification dictionary is always marginal", {
-  expect_false("x.cells.falsification" %in% names(formals(SIV)))
+  expect_false("x.cells.falsification" %in% names(formals(LSIV)))
 })
 
 test_that("bin width and categorical-variable status are separate choices", {
   x <- rep(1:3, each = 10)
-  quantile_spec <- siv_make_empirical_bins(
+  quantile_spec <- lsiv_make_empirical_bins(
     x, n_bins = 2, name = "X1", categorical = FALSE
   )
-  categorical_spec <- siv_make_empirical_bins(
+  categorical_spec <- lsiv_make_empirical_bins(
     x, n_bins = 2, name = "X1", categorical = TRUE
   )
 
@@ -171,29 +171,29 @@ test_that("bin width and categorical-variable status are separate choices", {
   expect_equal(categorical_spec$n_bins, 3L)
 })
 
-test_that("new SIV arguments are validated", {
+test_that("new LSIV arguments are validated", {
   set.seed(85)
   d <- test_dgp(250, "binary")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
-                   estimand = "ATE"), "should be one of")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
-                   falsification = NA), "non-missing logical")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
-                   estimand = "QTT", QTT_quantile = 0), "strictly between")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
-                   falsification = TRUE,
-                   falsification_num.bin = c(20, 5)),
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
+                    estimand = "ATE"), "should be one of")
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
+                    falsification = NA), "non-missing logical")
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
+                    estimand = "QTT", QTT_quantile = 0), "strictly between")
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
+                    falsification = TRUE,
+                    falsification_num.bin = c(20, 5)),
                "ncol")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
-                   falsification = TRUE, falsification_num.boot = 2,
-                   falsification_categorical = "not_a_column"),
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary",
+                    falsification = TRUE, falsification_num.boot = 2,
+                    falsification_categorical = "not_a_column"),
                "Unknown")
 })
 
 test_that("QTT and falsification warn when cross-fitting is disabled", {
   set.seed(86)
   d <- test_dgp(300, "binary")
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, d$X, y_type = "binary",
     falsification = TRUE, falsification_num.boot = 9,
     falsification_num.bin = c(2, 2, 2, 2)
@@ -216,7 +216,7 @@ test_that("QTT and falsification warn when cross-fitting is disabled", {
   )
   expect_match(f$falsification$method, "median p-value")
 
-  f_single <- suppressWarnings(SIV(
+  f_single <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, d$X, y_type = "binary",
     Overall.Estimation_num.crossfit = 1L,
     Overall.Estimation_num.fold = 2L,
@@ -235,10 +235,10 @@ test_that("QTT and falsification warn when cross-fitting is disabled", {
   )
 
   expect_warning(
-    SIV(d$Y, d$A, d$Z, d$X, y_type = "binary", estimand = "QTT",
-        QTT_quantile = 0.5, QTT_c1 = 0.005, QTT_numBB = 9,
-        Overall.Estimation_num.crossfit = 1L,
-        Overall.Estimation_num.fold = 1L),
+    LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary", estimand = "QTT",
+         QTT_quantile = 0.5, QTT_c1 = 0.005, QTT_numBB = 9,
+         Overall.Estimation_num.crossfit = 1L,
+         Overall.Estimation_num.fold = 1L),
     "require cross-fitted"
   )
 })

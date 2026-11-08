@@ -4,15 +4,15 @@
   if (is.null(x) || !length(x) || is.na(x) || !nzchar(x)) y else x
 }
 
-if (!requireNamespace("SIV", quietly = TRUE)) {
+if (!requireNamespace("LSIV", quietly = TRUE)) {
   stop(
-    "Install SIV and all required dependencies first:\n  Rscript Code/Install.R",
+    "Install LSIV and its required R packages with:\n  devtools::install_github(\"qkrcks0218/LSIV\")",
     call. = FALSE
   )
 }
-suppressPackageStartupMessages(library(SIV))
+suppressPackageStartupMessages(library(LSIV))
 
-siv_env_int <- function(name, default, lower = 1L) {
+lsiv_env_int <- function(name, default, lower = 1L) {
   ans <- suppressWarnings(as.integer(Sys.getenv(name) %||% as.character(default)))
   if (length(ans) != 1L || is.na(ans) || ans < lower) {
     stop(sprintf("%s must be an integer >= %d.", name, lower), call. = FALSE)
@@ -21,7 +21,7 @@ siv_env_int <- function(name, default, lower = 1L) {
 }
 
 ## Comma-separated list of positive integers, e.g. SIM_N="500,1000,2000".
-siv_env_int_vector <- function(name, default, lower = 1L) {
+lsiv_env_int_vector <- function(name, default, lower = 1L) {
   value <- Sys.getenv(name)
   if (!nzchar(value)) value <- paste(default, collapse = ",")
   ans <- suppressWarnings(as.integer(trimws(
@@ -33,7 +33,7 @@ siv_env_int_vector <- function(name, default, lower = 1L) {
   ans
 }
 
-siv_env_types <- function(name = "SIM_TYPE", default = "both") {
+lsiv_env_types <- function(name = "SIM_TYPE", default = "both") {
   value <- tolower(Sys.getenv(name) %||% default)
   if (identical(value, "both")) return(c("continuous", "binary"))
   value <- strsplit(value, ",", fixed = TRUE)[[1L]]
@@ -45,14 +45,15 @@ siv_env_types <- function(name = "SIM_TYPE", default = "both") {
 }
 
 ## ---------------------------------------------------------------------------
-## Simulation DGPs. These live here, not in SIV_Package: they are properties
-## of the simulation designs rather than of any estimator implementation.
+## Simulation DGPs. These live here, not in the LSIV package: they are
+## properties of the simulation designs rather than of any estimator
+## implementation.
 ## ---------------------------------------------------------------------------
 
 ## EDIT THE DGP HERE. All observed-data generation, potential-treatment draws,
 ## oracle nuisances, and Monte Carlo truths below use this specification.
-siv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
-                           violation = c("siv", "mild", "severe")) {
+lsiv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
+                            violation = c("lsiv", "mild", "severe")) {
   type <- match.arg(type)
   violation <- match.arg(violation)
   p <- as.integer(p)
@@ -141,7 +142,7 @@ siv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
   
   violation_parameters <- switch(
     violation,
-    siv    = list(kappa = 0),
+    lsiv   = list(kappa = 0),
     mild   = list(kappa = 3),
     severe = list(kappa = 4.5)
   )
@@ -168,24 +169,24 @@ siv_dgp_forall <- function(type = c("continuous", "binary"), p = 3L,
 }
 
 ## Compatibility helper used by a few diagnostics.
-siv_alpha_shape <- function(y, type = c("continuous", "binary")) {
+lsiv_alpha_shape <- function(y, type = c("continuous", "binary")) {
   type <- match.arg(type)
-  siv_dgp_forall(type)$alpha_shape(y)
+  lsiv_dgp_forall(type)$alpha_shape(y)
 }
 
 ## Generic sampler. Do not repeat DGP formulas here.
-siv_dgp <- function(n, type = c("continuous", "binary"), p = 3L,
-                    violation = c("siv", "mild", "severe")) {
+lsiv_dgp <- function(n, type = c("continuous", "binary"), p = 3L,
+                     violation = c("lsiv", "mild", "severe")) {
   type <- match.arg(type)
   violation <- match.arg(violation)
-  spec <- siv_dgp_forall(type, p, violation)
+  spec <- lsiv_dgp_forall(type, p, violation)
   X <- spec$draw_x(n)
   W <- spec$x_index(X)
   pZ1 <- spec$p_z1(W)
   Z <- rbinom(n, 1, pZ1)
   Y0 <- spec$draw_y0(W, X)
   Y1 <- spec$draw_y1(W, X)
-  ## With `violation = "siv"` (the default) log_alpha == log_delta for both z,
+  ## With `violation = "lsiv"` (the default) log_alpha == log_delta for both z,
   ## so this is exactly the separable design used by the estimation scripts.
   logalpha_z0 <- spec$log_alpha(Y0, 0, W, X)
   logalpha_z1 <- spec$log_alpha(Y0, 1, W, X)
@@ -212,14 +213,14 @@ siv_dgp <- function(n, type = c("continuous", "binary"), p = 3L,
 }
 
 ## Generic oracle calculation from the same central DGP specification.
-siv_oracle_nuisance <- function(X, grid, weights,
-                                type = c("continuous", "binary"),
-                                violation = c("siv", "mild", "severe")) {
+lsiv_oracle_nuisance <- function(X, grid, weights,
+                                 type = c("continuous", "binary"),
+                                 violation = c("lsiv", "mild", "severe")) {
   type <- match.arg(type)
   violation <- match.arg(violation)
   X <- as.matrix(X)
   n <- nrow(X); M <- length(grid)
-  spec <- siv_dgp_forall(type, ncol(X), violation)
+  spec <- lsiv_dgp_forall(type, ncol(X), violation)
   W <- spec$x_index(X)
   pZ1 <- spec$p_z1(W)
   fy <- matrix(spec$density_y0(grid, W, X), nrow = n, ncol = M)
@@ -230,7 +231,7 @@ siv_oracle_nuisance <- function(X, grid, weights,
   logalpha_z1 <- matrix(vapply(
     grid, function(y) spec$log_alpha(rep(y, n), 1, W, X), numeric(n)),
     nrow = n, ncol = M)
-  ## The separable part only; equal to alpha for both z when violation = "siv".
+  ## The separable part only; equal to alpha for both z when violation = "lsiv".
   delta <- exp(matrix(vapply(
     grid, function(y) spec$log_delta(rep(y, n), W, X), numeric(n)),
     nrow = n, ncol = M))
@@ -260,7 +261,7 @@ siv_oracle_nuisance <- function(X, grid, weights,
 }
 
 ## Validation DGPs from the competing papers, used by 02_check_competitors.R.
-siv_dgp_liu2021 <- function(n) {
+lsiv_dgp_liu2021 <- function(n) {
   C1 <- rbinom(n, 1, 0.4)
   C2 <- rbinom(n, 1, 0.6)
   Z <- rbinom(n, 1, plogis(0.2 + 0.4 * C1 - 0.5 * C2))
@@ -273,7 +274,7 @@ siv_dgp_liu2021 <- function(n) {
        Y0 = Y0, Y1 = Y1, psi_true = -0.6)
 }
 
-siv_dgp_liu2021_cont <- function(n) {
+lsiv_dgp_liu2021_cont <- function(n) {
   C1 <- rbinom(n, 1, 0.4)
   C2 <- rbinom(n, 1, 0.6)
   Z <- rbinom(n, 1, plogis(0.7 + 0.8 * C1 - C2))
@@ -286,7 +287,7 @@ siv_dgp_liu2021_cont <- function(n) {
        Y0 = Y0, Y1 = Y1, psi_true = 0.3)
 }
 
-siv_dgp_sun2021 <- function(n) {
+lsiv_dgp_sun2021 <- function(n) {
   X1 <- rbinom(n, 1, 0.4)
   X2 <- rbinom(n, 1, 0.6)
   Z <- rbinom(n, 1,
@@ -298,8 +299,8 @@ siv_dgp_sun2021 <- function(n) {
        X = cbind(X1 = X1, X2 = X2), gamma_true = 1.8, mu_true = 0.769)
 }
 
-siv_dgp_sun2025 <- function(n, type = c("binary", "continuous"),
-                            gamma_true = 2) {
+lsiv_dgp_sun2025 <- function(n, type = c("binary", "continuous"),
+                             gamma_true = 2) {
   type <- match.arg(type)
   if (type == "binary") {
     L <- chol(matrix(c(1, 0.2, 0.2, 1), 2, 2))
@@ -327,20 +328,20 @@ siv_dgp_sun2025 <- function(n, type = c("binary", "continuous"),
 
 ## Automatic ATT truth from a large structural draw. pA integrates out the
 ## treatment Bernoulli draw, so this is less noisy than mean(effect[A == 1]).
-siv_att_from_draw <- function(d) {
+lsiv_att_from_draw <- function(d) {
   effect <- d$Y1 - d$Y0
   sum(d$pA * effect) / sum(d$pA)
 }
 
-siv_att_truth <- function(type = c("continuous", "binary"),
-                          n = 1000000L, seed = 20260902L, p = 3L) {
+lsiv_att_truth <- function(type = c("continuous", "binary"),
+                           n = 1000000L, seed = 20260902L, p = 3L) {
   type <- match.arg(type)
   set.seed(seed + match(type, c("continuous", "binary")))
-  siv_att_from_draw(siv_dgp(n, type, p))
+  lsiv_att_from_draw(lsiv_dgp(n, type, p))
 }
 
-## Reference estimators. These deliberately remain outside SIV_Package.
-siv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
+## Reference estimators. These deliberately remain outside the LSIV package.
+lsiv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
   X <- as.matrix(X)
   D <- cbind(`(Intercept)` = 1, A = A, X)
   Q <- cbind(`(Intercept)` = 1, Z = Z, X)
@@ -354,7 +355,7 @@ siv_fit_2sls <- function(Y, A, Z, X, compute_se = TRUE) {
   c(estimate = b[2L], se = sqrt(V[2L, 2L]))
 }
 
-siv_fit_linear_model <- function(Y, A, Z, X) {
+lsiv_fit_linear_model <- function(Y, A, Z, X) {
   dat <- data.frame(Y = Y, A = A, Z = Z, as.data.frame(X))
   rhs <- paste(c("A", "Z", colnames(X)), collapse = " + ")
   fit <- lm(as.formula(paste("Y ~", rhs)), data = dat)
@@ -373,15 +374,15 @@ siv_fit_linear_model <- function(Y, A, Z, X) {
 ##
 ## It is the ATT one would report if A were assumed independent of Y(0) given L
 ## -- i.e. ignoring the selection on the treatment-free outcome that the
-## separable-IV model allows.  Its bias against the true ATT is therefore the
-## price of that assumption, which is exactly what the comparison is for.
+## logit-separable IV model allows.  Its bias against the true ATT is therefore
+## the price of that assumption, which is exactly what the comparison is for.
 ##
 ## Note that the outcome regression cancels from the estimand: for any g(L),
 ## E[(1-A) {Pr(A=1|L)/Pr(A=0|L)} g(L)] = E[Pr(A=1|L) g(L)] = E[A g(L)],
 ## so the two g-terms cancel and only the treatment model has to be correct.
 ## The regression affects efficiency, not consistency; it is included as
 ## written above, fitted among the treated.
-siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
+lsiv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
   X <- as.matrix(X)
   n <- length(Y)
   crossfit <- max(1L, as.integer(crossfit))
@@ -418,7 +419,7 @@ siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
     m1[te] <- stats::predict(fy, newdata = df[te, , drop = FALSE],
                              type = "response")
   }
-  ## Pr(A=1|L) -> 1 makes the odds diverge; bound it as SIV_LATE() bounds its
+  ## Pr(A=1|L) -> 1 makes the odds diverge; bound it as LSIV_LATE() bounds its
   ## own propensities.
   pA <- pmin(pmax(pA, trim), 1 - trim)
   
@@ -428,21 +429,21 @@ siv_fit_ignorability <- function(Y, A, Z, X, crossfit = 2L, trim = 1e-2) {
   c(estimate = estimate, se = stats::sd(eif) / sqrt(n))
 }
 
-siv_compute_truths <- function(type, n = 300000L, seed = 20260902L) {
+lsiv_compute_truths <- function(type, n = 300000L, seed = 20260902L) {
   set.seed(seed + match(type, c("continuous", "binary")))
-  d <- siv_dgp(n, type)
+  d <- lsiv_dgp(n, type)
   effect <- d$Y1 - d$Y0
   late_weight <- d$pA1 - d$pA0
   expected_y <- d$Y0 + d$pA * effect
   c(
-    ATT = siv_att_from_draw(d),
+    ATT = lsiv_att_from_draw(d),
     LATE = sum(late_weight * effect) / sum(late_weight),
-    TSLS_projection = unname(siv_fit_2sls(
+    TSLS_projection = unname(lsiv_fit_2sls(
       expected_y, d$pA, d$Z, d$X, compute_se = FALSE)["estimate"])
   )
 }
 
-siv_summarise_results <- function(raw) {
+lsiv_summarise_results <- function(raw) {
   groups <- split(raw, interaction(raw$type, raw$method, drop = TRUE))
   out <- lapply(groups, function(g) {
     ## Preserve every finite estimate in the numerical summary. Diagnostics

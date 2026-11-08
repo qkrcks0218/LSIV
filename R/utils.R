@@ -2,13 +2,13 @@
 ## Low-level utilities shared by all estimators in the package.
 ##
 ## Traceability of the statistical content of this file:
-##   * `siv_sandwich()` implements the stacked-estimating-function ("sandwich")
+##   * `lsiv_sandwich()` implements the stacked-estimating-function ("sandwich")
 ##     covariance matrix of Sun et al. (2021), Supplemental Appendix, eq. (S2),
 ##     which is also the covariance used by Liu et al. (2021) (Section 6,
 ##     "se was evaluated using the sandwich estimator accounting for all sources
 ##     of variabilities") and by Sun, Miao and Wickramarachchi (2025),
 ##     Propositions 1 and 2 / Supplement Sections S2-S3.
-##   * `siv_tilt_basis()` builds the finite-dimensional basis used for the
+##   * `lsiv_tilt_basis()` builds the finite-dimensional basis used for the
 ##     selection-bias / odds-ratio function.  The normalisation b(y_ref) = 0
 ##     enforces the odds-ratio boundary condition
 ##     delta(y_ref, X) = 1  <=>  log delta(y_ref, X) = 0,
@@ -54,7 +54,7 @@ logit <- function(p) log(p) - log1p(-p)
 ## `A` is the *treatment* in the causal (Liu / Park & Tchetgen Tchetgen)
 ## parameterisation.  In the missing-data (Sun) parameterisation the response
 ## indicator is R = 1 - A; the mapping is applied by the calling function.
-siv_check_data <- function(Y, A, Z, X, allow_na_Y = FALSE) {
+lsiv_check_data <- function(Y, A, Z, X, allow_na_Y = FALSE) {
   if (!is.numeric(Y)) stop("`Y` must be a numeric vector.", call. = FALSE)
   n <- length(Y)
   if (length(A) != n) stop("`A` must have the same length as `Y`.", call. = FALSE)
@@ -84,10 +84,10 @@ siv_check_data <- function(Y, A, Z, X, allow_na_Y = FALSE) {
   list(Y = Y, A = A, Z = Z, X = X, n = n)
 }
 
-## Internal: validate the explicit outcome-type argument.  Used by SIV() and by
+## Internal: validate the explicit outcome-type argument.  Used by LSIV() and by
 ## the competing estimators.  The type is *never* inferred from the data; it is
 ## only cross-checked against the data for obvious contradictions.
-siv_match_type <- function(type, Y, A) {
+lsiv_match_type <- function(type, Y, A) {
   type <- match.arg(type, c("binary", "continuous"))
   obs <- Y[A == 0]
   if (type == "binary" && !all(obs %in% c(0, 1))) {
@@ -110,7 +110,7 @@ siv_match_type <- function(type, Y, A) {
 #' All three competing estimators implemented in this package model the
 #' selection-bias function -- equivalently the log odds-ratio function relating
 #' the outcome and the treatment / response indicator -- through a
-#' finite-dimensional working model.  `siv_basis_spec()` collects the tuning
+#' finite-dimensional working model.  `lsiv_basis_spec()` collects the tuning
 #' parameters of that working model in one place so that they are configurable
 #' rather than hard-coded.
 #'
@@ -149,18 +149,18 @@ siv_match_type <- function(type, Y, A) {
 #'   Tchetgen Tchetgen, Section 7, where
 #'   `log delta(y, X) = (0.4 + 0.05 * W) * a(y)`).
 #'
-#' @return An object of class `"siv_basis_spec"`.
+#' @return An object of class `"lsiv_basis_spec"`.
 #' @examples
-#' siv_basis_spec("linear")
-#' siv_basis_spec("ns", df = 3, interact = "all")
+#' lsiv_basis_spec("linear")
+#' lsiv_basis_spec("ns", df = 3, interact = "all")
 #' @export
-siv_basis_spec <- function(type = c("linear", "ns", "bs", "poly"),
-                           df = 3L,
-                           degree = 3L,
-                           knots = NULL,
-                           Boundary.knots = NULL,
-                           y_ref = 0,
-                           interact = NULL) {
+lsiv_basis_spec <- function(type = c("linear", "ns", "bs", "poly"),
+                            df = 3L,
+                            degree = 3L,
+                            knots = NULL,
+                            Boundary.knots = NULL,
+                            y_ref = 0,
+                            interact = NULL) {
   type <- match.arg(type)
   if (!is.numeric(y_ref) || length(y_ref) != 1L) {
     stop("`y_ref` must be a single number.", call. = FALSE)
@@ -173,11 +173,11 @@ siv_basis_spec <- function(type = c("linear", "ns", "bs", "poly"),
   structure(list(type = type, df = as.integer(df), degree = as.integer(degree),
                  knots = knots, Boundary.knots = Boundary.knots,
                  y_ref = y_ref, interact = interact),
-            class = "siv_basis_spec")
+            class = "lsiv_basis_spec")
 }
 
 #' @export
-print.siv_basis_spec <- function(x, ...) {
+print.lsiv_basis_spec <- function(x, ...) {
   cat("Selection-bias basis specification\n")
   cat("  outcome basis :", x$type, "\n")
   if (x$type %in% c("ns", "bs", "poly")) cat("  df / degree   :", x$df, "/", x$degree, "\n")
@@ -195,8 +195,8 @@ print.siv_basis_spec <- function(x, ...) {
 ## locations, boundary knots, interacting covariate columns) so that the basis
 ## is a *fixed* function of y afterwards.  This matters for the sandwich
 ## variance: the basis must not change when the parameter vector is perturbed.
-siv_basis_fit <- function(spec, y_obs, X) {
-  stopifnot(inherits(spec, "siv_basis_spec"))
+lsiv_basis_fit <- function(spec, y_obs, X) {
+  stopifnot(inherits(spec, "lsiv_basis_spec"))
   spec <- unclass(spec)
   y_obs <- y_obs[is.finite(y_obs)]
   if (spec$type %in% c("ns", "bs")) {
@@ -221,11 +221,11 @@ siv_basis_fit <- function(spec, y_obs, X) {
     }
   }
   spec$.interact_idx <- idx
-  structure(spec, class = c("siv_basis_fitted", "siv_basis_spec"))
+  structure(spec, class = c("lsiv_basis_fitted", "lsiv_basis_spec"))
 }
 
 ## Internal: raw (un-normalised) outcome basis.
-siv_basis_raw <- function(spec, y) {
+lsiv_basis_raw <- function(spec, y) {
   y <- as.numeric(y)
   switch(spec$type,
     linear = matrix(y, ncol = 1L, dimnames = list(NULL, "y")),
@@ -257,17 +257,17 @@ siv_basis_raw <- function(spec, y) {
 #' selection-bias function, normalised so that `b(y_ref, x) = 0` for every `x`.
 #'
 #' @param spec A fitted basis specification, as produced internally from
-#'   [siv_basis_spec()].
+#'   [lsiv_basis_spec()].
 #' @param y Numeric vector of outcome values.
 #' @param X Covariate matrix with `length(y)` rows (only used when the
 #'   specification requests interactions).
-#' @return A numeric matrix with `length(y)` rows and `siv_basis_dim(spec)`
+#' @return A numeric matrix with `length(y)` rows and `lsiv_basis_dim(spec)`
 #'   columns.
 #' @keywords internal
 #' @export
-siv_basis_eval <- function(spec, y, X = NULL) {
-  b <- siv_basis_raw(spec, y)
-  b0 <- siv_basis_raw(spec, spec$y_ref)
+lsiv_basis_eval <- function(spec, y, X = NULL) {
+  b <- lsiv_basis_raw(spec, y)
+  b0 <- lsiv_basis_raw(spec, spec$y_ref)
   ## Normalisation b(y_ref) = 0, i.e. the odds-ratio boundary condition.
   b <- sweep(b, 2L, as.numeric(b0), "-")
   idx <- spec$.interact_idx
@@ -284,7 +284,7 @@ siv_basis_eval <- function(spec, y, X = NULL) {
 }
 
 ## Internal: dimension of the (normalised) basis.
-siv_basis_dim <- function(spec) {
+lsiv_basis_dim <- function(spec) {
   q <- switch(spec$type, linear = 1L, poly = spec$df,
               ns = length(spec$knots) + 1L,
               bs = length(spec$knots) + spec$degree)
@@ -299,7 +299,7 @@ siv_basis_dim <- function(spec) {
 ## ----------------------------------------------------------------------------
 
 ## Internal: nodes/weights for  \int f(x) exp(-x^2) dx  ~  sum_k w_k f(x_k).
-siv_gauss_hermite <- function(n) {
+lsiv_gauss_hermite <- function(n) {
   n <- as.integer(n)
   if (n < 1L) stop("`n` must be a positive integer.", call. = FALSE)
   i <- seq_len(n - 1L)
@@ -319,8 +319,8 @@ siv_gauss_hermite <- function(n) {
 ## Internal: nodes/weights for E{f(Y)} with Y ~ N(mu, sd^2), for a *vector* of
 ## means and a scalar sd.  Returns a list with an n x K matrix of nodes and a
 ## length-K vector of probability weights summing to one.
-siv_gh_normal <- function(mu, sd, n_nodes = 20L) {
-  gh <- siv_gauss_hermite(n_nodes)
+lsiv_gh_normal <- function(mu, sd, n_nodes = 20L) {
+  gh <- lsiv_gauss_hermite(n_nodes)
   nodes <- outer(as.numeric(mu), sqrt(2) * sd * gh$nodes, "+")
   list(nodes = nodes, weights = gh$weights / sqrt(pi))
 }
@@ -378,10 +378,10 @@ siv_gh_normal <- function(mu, sd, n_nodes = 20L) {
 #' x <- rnorm(200); y <- rbinom(200, 1, expit(0.5 * x))
 #' fit <- glm(y ~ x, family = binomial())
 #' ef <- function(th) cbind(1, x) * as.vector(y - expit(cbind(1, x) %*% th))
-#' siv_sandwich(ef, coef(fit))$vcov
+#' lsiv_sandwich(ef, coef(fit))$vcov
 #' @export
-siv_sandwich <- function(estfun, theta, names = NULL, tol = 1e-8,
-                         jac_args = list(r = 2)) {
+lsiv_sandwich <- function(estfun, theta, names = NULL, tol = 1e-8,
+                          jac_args = list(r = 2)) {
   psi <- estfun(theta)
   psi <- as.matrix(psi)
   n <- nrow(psi)
@@ -399,7 +399,7 @@ siv_sandwich <- function(estfun, theta, names = NULL, tol = 1e-8,
   ## B_hat = n^{-1} sum_i M_i M_i^T  (the "meat" matrix).
   B <- crossprod(psi) / n
   Ainv <- tryCatch(solve(A), error = function(e) {
-    tryCatch(siv_ginv(A), error = function(e2) matrix(NA_real_, p, p))
+    tryCatch(lsiv_ginv(A), error = function(e2) matrix(NA_real_, p, p))
   })
   V <- Ainv %*% B %*% t(Ainv) / n
   V <- (V + t(V)) / 2  ## enforce exact symmetry after the numerical inverse
@@ -422,7 +422,7 @@ siv_sandwich <- function(estfun, theta, names = NULL, tol = 1e-8,
 
 ## Internal: minimal Moore-Penrose pseudo-inverse, so that a singular Jacobian
 ## degrades gracefully (and is reported through `checks`) instead of aborting.
-siv_ginv <- function(M, tol = sqrt(.Machine$double.eps)) {
+lsiv_ginv <- function(M, tol = sqrt(.Machine$double.eps)) {
   s <- svd(M)
   keep <- s$d > max(tol * s$d[1L], 0)
   if (!any(keep)) return(matrix(0, ncol(M), nrow(M)))
@@ -435,9 +435,9 @@ siv_ginv <- function(M, tol = sqrt(.Machine$double.eps)) {
 ## Convergence criterion follows Sun, Miao and Wickramarachchi (2025),
 ## Supplement Table S3 note: "the residual of the square average estimating
 ## equation component being less than 1e-7".
-siv_solve_ee <- function(fn, start, tol = 1e-7, maxit = 200L, verbose = FALSE,
-                         fallback = TRUE, fallback_maxit = 500L,
-                         fallback_maxpar = 10L) {
+lsiv_solve_ee <- function(fn, start, tol = 1e-7, maxit = 200L, verbose = FALSE,
+                          fallback = TRUE, fallback_maxit = 500L,
+                          fallback_maxpar = 10L) {
   theta <- start
   conv <- FALSE
   crit <- NA_real_
@@ -463,7 +463,7 @@ siv_solve_ee <- function(fn, start, tol = 1e-7, maxit = 200L, verbose = FALSE,
     J <- tryCatch(numDeriv::jacobian(fn, theta, method = "simple"),
                   error = function(e) NULL)
     if (is.null(J) || !all(is.finite(J))) break
-    step <- tryCatch(solve(J, -f), error = function(e) siv_ginv(J) %*% (-f))
+    step <- tryCatch(solve(J, -f), error = function(e) lsiv_ginv(J) %*% (-f))
     step <- as.numeric(step)
     ## damped update: halve the step until the criterion decreases
     ok <- FALSE
@@ -494,14 +494,14 @@ siv_solve_ee <- function(fn, start, tol = 1e-7, maxit = 200L, verbose = FALSE,
     if (is.finite(op$value) && op$value < crit) { theta <- op$par; crit <- op$value }
     conv <- is.finite(crit) && crit < tol
   }
-  if (verbose) message(sprintf("siv_solve_ee: criterion = %.3e, converged = %s",
-                               crit, conv))
+  if (verbose) message(sprintf(
+    "lsiv_solve_ee: criterion = %.3e, converged = %s", crit, conv))
   list(par = theta, criterion = crit, converged = conv)
 }
 
 ## Internal: build a model matrix from a one-sided formula and a data frame,
 ## returning a plain numeric matrix (with intercept unless suppressed).
-siv_model_matrix <- function(formula, data) {
+lsiv_model_matrix <- function(formula, data) {
   mf <- stats::model.frame(formula, data = data, na.action = stats::na.pass)
   mm <- stats::model.matrix(formula, mf)
   storage.mode(mm) <- "double"
@@ -510,7 +510,7 @@ siv_model_matrix <- function(formula, data) {
 
 ## Internal: assemble a data frame holding Y, A, Z and the columns of X, used
 ## for building the working-model design matrices from user formulas.
-siv_frame <- function(Y, A, Z, X) {
+lsiv_frame <- function(Y, A, Z, X) {
   df <- data.frame(Y = Y, A = A, Z = Z)
   if (ncol(X) > 0L) df <- cbind(df, as.data.frame(X))
   df
@@ -523,8 +523,8 @@ siv_frame <- function(Y, A, Z, X) {
 ## Internal: reduce a fitted basis specification to its scalar "linear" version,
 ## keeping the same reference value.  Used to build a one-parameter version of
 ## the selection-bias model whose estimating equations are well conditioned.
-siv_basis_scalar <- function(spec) {
-  siv_basis_spec("linear", y_ref = spec$y_ref, interact = NULL)
+lsiv_basis_scalar <- function(spec) {
+  lsiv_basis_spec("linear", y_ref = spec$y_ref, interact = NULL)
 }
 
 ## Internal: least-squares projection of a fitted scalar selection-bias
@@ -532,8 +532,8 @@ siv_basis_scalar <- function(spec) {
 ## outcomes.  This gives a starting value for the multi-parameter model that
 ## reproduces the (well-identified) scalar fit as closely as the richer basis
 ## allows, which is a far better starting point than the zero vector.
-siv_project_psi <- function(spec_full, y, X, psi_scalar, y_ref) {
-  Bfull <- siv_basis_eval(spec_full, y, X)
+lsiv_project_psi <- function(spec_full, y, X, psi_scalar, y_ref) {
+  Bfull <- lsiv_basis_eval(spec_full, y, X)
   target <- psi_scalar * (y - y_ref)
   fit <- tryCatch(stats::lm.fit(Bfull, target), error = function(e) NULL)
   if (is.null(fit) || anyNA(fit$coefficients)) return(rep(0, ncol(Bfull)))
@@ -546,7 +546,7 @@ siv_project_psi <- function(spec_full, y, X, psi_scalar, y_ref) {
 ## terms not involving `Y` (i.e. there is no Y-by-covariate interaction), so
 ## that the linear predictor is additive and can be evaluated on an outcome grid
 ## in O(n + M) rather than O(n * M) predictions.
-siv_formula_additive_in_Y <- function(formula, data) {
+lsiv_formula_additive_in_Y <- function(formula, data) {
   tl <- attr(stats::terms(formula, data = data), "term.labels")
   if (!length(tl)) return(TRUE)
   hasY <- vapply(tl, function(t) "Y" %in% all.vars(stats::reformulate(t)),

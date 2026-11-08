@@ -2,7 +2,7 @@
 ## Shared nuisance-estimation plumbing: cross-fitting folds and a thin
 ## fit/predict abstraction over the two supported learners.
 ##
-##   learner = "glm"  the SIV_LATE() default. Parametric working models specified
+##   learner = "glm"  the LSIV_LATE() default. Parametric working models specified
 ##                    by the user's formulas (`instrument_formula`,
 ##                    `treatment_formula`, `outcome_formula`), fitted with
 ##                    stats::glm / stats::lm.  This is the behaviour the package
@@ -13,14 +13,14 @@
 ##                    the columns of `X`, plus `Z` for the models that condition
 ##                    on the instrument.
 ##
-## Both `SIV()` and `SIV_LATE()` go through this file. `SIV()` always selects
-## Super Learner, while `SIV_LATE()` retains the learner switch.
+## Both `LSIV()` and `LSIV_LATE()` go through this file. `LSIV()` always selects
+## Super Learner, while `LSIV_LATE()` retains the learner switch.
 ## ----------------------------------------------------------------------------
 
-## Internal: cross-fitting folds shared by SIV() and SIV_LATE().  Two-fold
+## Internal: cross-fitting folds shared by LSIV() and LSIV_LATE().  Two-fold
 ## splitting reproduces Data_Version1 exactly; larger fold counts remain
 ## stratified on (A, Z) so that every fold contains all four cells.
-siv_make_folds <- function(n, A, Z, crossfit) {
+lsiv_make_folds <- function(n, A, Z, crossfit) {
   crossfit <- max(1L, as.integer(crossfit))
   if (crossfit == 1L) return(list(seq_len(n)))
   if (crossfit == 2L) {
@@ -68,13 +68,14 @@ siv_make_folds <- function(n, A, Z, crossfit) {
 ##
 ## Degenerate responses (constant y) are handled here rather than inside the
 ## learners: every caller wants the constant back, not an error.
-siv_learn_fit <- function(data, yname, xnames, family, learner = c("glm", "SL"),
-                          SL.list = 1L, formula = NULL, SL.N = nrow(data)) {
+lsiv_learn_fit <- function(data, yname, xnames, family,
+                           learner = c("glm", "SL"), SL.list = 1L,
+                           formula = NULL, SL.N = nrow(data)) {
   learner <- match.arg(learner)
   y <- data[[yname]]
   if (!length(xnames) || length(unique(y[is.finite(y)])) <= 1L) {
     return(structure(list(constant = if (length(y)) mean(y, na.rm = TRUE) else 0),
-                     class = "siv_learner_const"))
+                     class = "lsiv_learner_const"))
   }
   if (learner == "glm") {
     if (is.null(formula)) {
@@ -87,7 +88,7 @@ siv_learn_fit <- function(data, yname, xnames, family, learner = c("glm", "SL"),
       suppressWarnings(stats::glm(formula, data = data, family = family))
     }
     return(structure(list(fit = fit, family = family),
-                     class = "siv_learner_glm"))
+                     class = "lsiv_learner_glm"))
   }
   ## Super Learner.  MySL() addresses columns positionally, so hand it a frame
   ## whose first column is the response and whose remaining columns are the
@@ -97,22 +98,22 @@ siv_learn_fit <- function(data, yname, xnames, family, learner = c("glm", "SL"),
   fit <- MySL(d, locY = 1L, locX = 1L + seq_along(xnames),
               Ydist = family, SL.list = SL.list, SL.N = SL.N)
   structure(list(fit = fit, xnames = xnames, family = family),
-            class = "siv_learner_sl")
+            class = "lsiv_learner_sl")
 }
 
-## Internal: predict from a fitted `siv_learn_fit()` object on `newdata`.
+## Internal: predict from a fitted `lsiv_learn_fit()` object on `newdata`.
 ## Always returns a plain numeric vector on the response scale.
-siv_learn_predict <- function(object, newdata) {
+lsiv_learn_predict <- function(object, newdata) {
   n <- nrow(newdata)
   out <- switch(
     class(object)[1L],
-    siv_learner_const = rep(object$constant, n),
-    siv_learner_glm   = if (identical(object$family$family, "gaussian")) {
+    lsiv_learner_const = rep(object$constant, n),
+    lsiv_learner_glm   = if (identical(object$family$family, "gaussian")) {
       as.numeric(stats::predict(object$fit, newdata = newdata))
     } else {
       as.numeric(stats::predict(object$fit, newdata = newdata, type = "response"))
     },
-    siv_learner_sl = as.numeric(
+    lsiv_learner_sl = as.numeric(
       stats::predict(object$fit,
                      newdata = newdata[, object$xnames, drop = FALSE],
                      onlySL = TRUE)$pred),
@@ -125,12 +126,12 @@ siv_learn_predict <- function(object, newdata) {
 ## used by the Gaussian conditional-density working model.  For a Super Learner
 ## fit there is no `sigma()` method, so it is computed from the in-sample
 ## residuals of the ensemble prediction.
-siv_learn_sigma <- function(object, data, yname) {
-  if (inherits(object, "siv_learner_glm") &&
+lsiv_learn_sigma <- function(object, data, yname) {
+  if (inherits(object, "lsiv_learner_glm") &&
       identical(object$family$family, "gaussian")) {
     return(stats::sigma(object$fit))
   }
-  r <- data[[yname]] - siv_learn_predict(object, data)
+  r <- data[[yname]] - lsiv_learn_predict(object, data)
   r <- r[is.finite(r)]
   if (!length(r)) return(1)
   max(stats::sd(r), 1e-8)

@@ -1,6 +1,6 @@
 ## Test-only data generators. These are fixtures for estimator tests and are
-## deliberately not part of the installed SIV namespace. The simulation source
-## used for analysis lives in Simulation_Version2_based_on_SIV_Package/00_common.R.
+## deliberately not part of the installed LSIV namespace. The simulation source
+## used for analysis lives in ReplicationFiles/Simulation/00_common.R.
 
 test_alpha_shape <- function(y, type = c("continuous", "binary")) {
   type <- match.arg(type)

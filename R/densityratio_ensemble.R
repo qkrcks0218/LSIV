@@ -11,7 +11,7 @@
 
 ## Internal: squared Euclidean distances without relying on an unexported
 ## densityratio helper.
-siv_kliep_ulsif_squared_distance <- function(x, centers) {
+lsiv_kliep_ulsif_squared_distance <- function(x, centers) {
   x <- as.matrix(x)
   centers <- as.matrix(centers)
   ans <- outer(rowSums(x^2), rowSums(centers^2), "+") -
@@ -21,7 +21,7 @@ siv_kliep_ulsif_squared_distance <- function(x, centers) {
 
 ## Internal: construct a common-bandwidth candidate range from distance
 ## quantiles.
-siv_kliep_ulsif_sigma_candidates <- function(
+lsiv_kliep_ulsif_sigma_candidates <- function(
     x1, x0, kernel_num = 100L,
     probs = c(0.5, 0.75, 0.9)) {
   x1 <- as.matrix(x1)
@@ -35,7 +35,7 @@ siv_kliep_ulsif_sigma_candidates <- function(
   sigma_factor <- stats::IQR(x1[, 1L]) / stats::IQR(x0[, 1L])
   if (!is.finite(sigma_factor) || sigma_factor <= 0) sigma_factor <- 1
   sigma <- sqrt(stats::quantile(
-    siv_kliep_ulsif_squared_distance(x1, centers), probs = probs,
+    lsiv_kliep_ulsif_squared_distance(x1, centers), probs = probs,
     names = FALSE, na.rm = TRUE
   )) * sigma_factor
   sigma <- unique(as.numeric(sigma[is.finite(sigma) & sigma > 1e-8]))
@@ -47,7 +47,7 @@ siv_kliep_ulsif_sigma_candidates <- function(
 ## centred and scaled using the pooled outer-training sample, giving every
 ## nondegenerate X column unit standard deviation.  Y is only centred because
 ## its scale is controlled directly by the Y bandwidth.
-siv_kliep_ulsif_transform_info <- function(x1, x0) {
+lsiv_kliep_ulsif_transform_info <- function(x1, x0) {
   all <- rbind(as.data.frame(x1), as.data.frame(x0))
   y_center <- mean(all[[1L]])
   if (ncol(all) == 1L) {
@@ -61,7 +61,7 @@ siv_kliep_ulsif_transform_info <- function(x1, x0) {
   list(y_center = y_center, x_center = x_center, x_scale = x_scale)
 }
 
-siv_kliep_ulsif_transform <- function(data, transform, h_y, h_x) {
+lsiv_kliep_ulsif_transform <- function(data, transform, h_y, h_x) {
   data <- as.data.frame(data)
   out <- data.frame(Y = (data[[1L]] - transform$y_center) / h_y)
   if (ncol(data) > 1L) {
@@ -76,7 +76,7 @@ siv_kliep_ulsif_transform <- function(data, transform, h_y, h_x) {
 ## Internal: pooled outer-training standardisation for a common bandwidth.
 ## Every Y/X coordinate is put on a unit-standard-deviation scale before the
 ## scalar bandwidth is selected, fitted, and used for prediction.
-siv_kliep_ulsif_common_transform_info <- function(x1, x0) {
+lsiv_kliep_ulsif_common_transform_info <- function(x1, x0) {
   all <- rbind(as.data.frame(x1), as.data.frame(x0))
   center <- colMeans(all)
   scale <- apply(all, 2L, stats::sd)
@@ -84,7 +84,7 @@ siv_kliep_ulsif_common_transform_info <- function(x1, x0) {
   list(center = center, scale = scale)
 }
 
-siv_kliep_ulsif_common_transform <- function(data, transform) {
+lsiv_kliep_ulsif_common_transform <- function(data, transform) {
   data <- as.data.frame(data)
   out <- sweep(as.matrix(data), 2L, transform$center, "-")
   out <- sweep(out, 2L, transform$scale, "/")
@@ -95,13 +95,13 @@ siv_kliep_ulsif_common_transform <- function(data, transform) {
 
 ## Internal: separate bandwidth ranges for Y and standardised X.  Distance
 ## quantiles for each axis define the two-dimensional CV grid.
-siv_kliep_ulsif_bandwidth_candidates <- function(
+lsiv_kliep_ulsif_bandwidth_candidates <- function(
     x1, x0, kernel_num = 100L,
     probs = c(0.5, 0.75, 0.9)) {
   x1 <- as.data.frame(x1)
   x0 <- as.data.frame(x0)
   all <- rbind(x1, x0)
-  transform <- siv_kliep_ulsif_transform_info(x1, x0)
+  transform <- lsiv_kliep_ulsif_transform_info(x1, x0)
   kernel_num <- min(as.integer(kernel_num), nrow(x1), nrow(all))
   center_index <- if (kernel_num >= nrow(all)) {
     seq_len(nrow(all))
@@ -120,7 +120,7 @@ siv_kliep_ulsif_bandwidth_candidates <- function(
     X1 <- sweep(X1, 2L, transform$x_scale, "/")
     Xc <- sweep(as.matrix(centers[-1L]), 2L, transform$x_center, "-")
     Xc <- sweep(Xc, 2L, transform$x_scale, "/")
-    dx2 <- siv_kliep_ulsif_squared_distance(X1, Xc)
+    dx2 <- lsiv_kliep_ulsif_squared_distance(X1, Xc)
     h_x <- sqrt(stats::quantile(
       dx2, probs = probs, names = FALSE, na.rm = TRUE
     ))
@@ -141,15 +141,15 @@ siv_kliep_ulsif_bandwidth_candidates <- function(
 ## Internal: fit one anisotropic density-ratio candidate using only the public
 ## densityratio interface.  Dividing Y by h_y and each standardised X column by
 ## h_x is exactly the separate-bandwidth Gaussian kernel.
-siv_kliep_ulsif_anisotropic_fit <- function(
+lsiv_kliep_ulsif_anisotropic_fit <- function(
     method, x1, x0, bandwidth, transform, kernel_num = 100L,
     fold = 5L, centers = NULL, cv = FALSE) {
   h_y <- unname(bandwidth[["h_y"]])
   h_x <- unname(bandwidth[["h_x"]])
-  tx1 <- siv_kliep_ulsif_transform(x1, transform, h_y, h_x)
-  tx0 <- siv_kliep_ulsif_transform(x0, transform, h_y, h_x)
+  tx1 <- lsiv_kliep_ulsif_transform(x1, transform, h_y, h_x)
+  tx0 <- lsiv_kliep_ulsif_transform(x0, transform, h_y, h_x)
   tc <- if (is.null(centers)) NULL else {
-    siv_kliep_ulsif_transform(centers, transform, h_y, h_x)
+    lsiv_kliep_ulsif_transform(centers, transform, h_y, h_x)
   }
   kernel_num <- min(as.integer(kernel_num), nrow(tx1))
   fit <- if (identical(method, "kliep")) {
@@ -175,16 +175,16 @@ siv_kliep_ulsif_anisotropic_fit <- function(
   structure(
     list(fit = fit, bandwidth = c(h_y = h_y, h_x = h_x),
          transform = transform),
-    class = "siv_kliep_ulsif_anisotropic"
+    class = "lsiv_kliep_ulsif_anisotropic"
   )
 }
 
 ## Internal: fit the two direct density-ratio candidates with separate Y and X
 ## bandwidth selection.
-siv_kliep_ulsif_fit <- function(x1, x0, kernel_num = 100L, fold = 5L,
-                                sigma = NULL,
-                                cv_grid = c(0.5, 0.75, 0.9),
-                                methods = c("kliep", "ulsif")) {
+lsiv_kliep_ulsif_fit <- function(x1, x0, kernel_num = 100L, fold = 5L,
+                                 sigma = NULL,
+                                 cv_grid = c(0.5, 0.75, 0.9),
+                                 methods = c("kliep", "ulsif")) {
   x1 <- as.data.frame(x1)
   x0 <- as.data.frame(x0)
   if (!identical(names(x1), names(x0))) names(x0) <- names(x1)
@@ -196,7 +196,7 @@ siv_kliep_ulsif_fit <- function(x1, x0, kernel_num = 100L, fold = 5L,
     stop("Fixed scalar `sigma` is unavailable for the separate-bandwidth fit.",
          call. = FALSE)
   }
-  bandwidth_info <- siv_kliep_ulsif_bandwidth_candidates(
+  bandwidth_info <- lsiv_kliep_ulsif_bandwidth_candidates(
     x1, x0, kernel_num, probs = cv_grid
   )
   candidate_grid <- bandwidth_info$grid
@@ -215,7 +215,7 @@ siv_kliep_ulsif_fit <- function(x1, x0, kernel_num = 100L, fold = 5L,
     candidate_fits <- vector("list", nrow(candidate_grid))
     for (j in seq_len(nrow(candidate_grid))) {
       if (identical(method, "kliep")) set.seed(cv_seed)
-      candidate_fits[[j]] <- siv_kliep_ulsif_anisotropic_fit(
+      candidate_fits[[j]] <- lsiv_kliep_ulsif_anisotropic_fit(
         method, x1, x0, candidate_grid[j, ], bandwidth_info$transform,
         kernel_num = kernel_num, fold = fold,
         centers = bandwidth_info$centers,
@@ -251,7 +251,7 @@ siv_kliep_ulsif_fit <- function(x1, x0, kernel_num = 100L, fold = 5L,
 ## Internal: scalar-bandwidth CV fit.  Y and every X coordinate are first
 ## standardised using the pooled outer-training sample, after which the same
 ## sigma is selected and applied to every coordinate.
-siv_kliep_ulsif_YXcommonbw_fit <- function(
+lsiv_kliep_ulsif_YXcommonbw_fit <- function(
     x1, x0, kernel_num = 100L, fold = 5L,
     cv_grid = c(0.5, 0.75, 0.9),
     methods = c("kliep", "ulsif")) {
@@ -262,10 +262,10 @@ siv_kliep_ulsif_YXcommonbw_fit <- function(
                               several.ok = TRUE))
   kernel_num <- min(as.integer(kernel_num), nrow(x1))
   fold <- max(2L, min(as.integer(fold), nrow(x1)))
-  transform <- siv_kliep_ulsif_common_transform_info(x1, x0)
-  tx1 <- siv_kliep_ulsif_common_transform(x1, transform)
-  tx0 <- siv_kliep_ulsif_common_transform(x0, transform)
-  sigma_info <- siv_kliep_ulsif_sigma_candidates(
+  transform <- lsiv_kliep_ulsif_common_transform_info(x1, x0)
+  tx1 <- lsiv_kliep_ulsif_common_transform(x1, transform)
+  tx0 <- lsiv_kliep_ulsif_common_transform(x0, transform)
+  sigma_info <- lsiv_kliep_ulsif_sigma_candidates(
     tx1, tx0, kernel_num, probs = cv_grid
   )
 
@@ -291,7 +291,7 @@ siv_kliep_ulsif_YXcommonbw_fit <- function(
     if (is.null(fit)) return(NULL)
     structure(
       list(fit = fit, transform = transform),
-      class = "siv_kliep_ulsif_common"
+      class = "lsiv_kliep_ulsif_common"
     )
   })
   names(fits) <- methods
@@ -314,7 +314,7 @@ siv_kliep_ulsif_YXcommonbw_fit <- function(
 ## candidates standardise Y and X on the pooled outer-training sample before
 ## using one common median bandwidth.  uLSIF retains its inexpensive lambda
 ## selection.
-siv_kliep_ulsif_median_fit <- function(
+lsiv_kliep_ulsif_median_fit <- function(
     x1, x0, kernel_num = 100L,
     methods = c("kliep", "ulsif")) {
   x1 <- as.data.frame(x1)
@@ -323,9 +323,9 @@ siv_kliep_ulsif_median_fit <- function(
   methods <- unique(match.arg(methods, c("kliep", "ulsif"),
                               several.ok = TRUE))
   kernel_num <- min(as.integer(kernel_num), nrow(x1))
-  transform <- siv_kliep_ulsif_common_transform_info(x1, x0)
-  tx1 <- siv_kliep_ulsif_common_transform(x1, transform)
-  tx0 <- siv_kliep_ulsif_common_transform(x0, transform)
+  transform <- lsiv_kliep_ulsif_common_transform_info(x1, x0)
+  tx1 <- lsiv_kliep_ulsif_common_transform(x1, transform)
+  tx0 <- lsiv_kliep_ulsif_common_transform(x0, transform)
 
   fits <- lapply(methods, function(method) {
     fit <- if (identical(method, "kliep")) {
@@ -348,7 +348,7 @@ siv_kliep_ulsif_median_fit <- function(
     if (is.null(fit)) return(NULL)
     structure(
       list(fit = fit, transform = transform),
-      class = "siv_kliep_ulsif_common"
+      class = "lsiv_kliep_ulsif_common"
     )
   })
   names(fits) <- methods
@@ -372,7 +372,7 @@ siv_kliep_ulsif_median_fit <- function(
 
 ## Internal: median-heuristic fit with distinct bandwidths for Y and the
 ## standardised X coordinates.
-siv_kliep_ulsif_median_separate_fit <- function(
+lsiv_kliep_ulsif_median_separate_fit <- function(
     x1, x0, kernel_num = 100L,
     methods = c("kliep", "ulsif")) {
   x1 <- as.data.frame(x1)
@@ -380,12 +380,12 @@ siv_kliep_ulsif_median_separate_fit <- function(
   if (!identical(names(x1), names(x0))) names(x0) <- names(x1)
   methods <- unique(match.arg(methods, c("kliep", "ulsif"),
                               several.ok = TRUE))
-  info <- siv_kliep_ulsif_bandwidth_candidates(
+  info <- lsiv_kliep_ulsif_bandwidth_candidates(
     x1, x0, kernel_num = kernel_num, probs = 0.5
   )
   bandwidth <- info$grid[1L, , drop = FALSE]
   fits <- lapply(methods, function(method) {
-    siv_kliep_ulsif_anisotropic_fit(
+    lsiv_kliep_ulsif_anisotropic_fit(
       method, x1, x0, bandwidth = bandwidth,
       transform = info$transform, kernel_num = kernel_num,
       centers = info$centers, cv = FALSE
@@ -413,13 +413,13 @@ siv_kliep_ulsif_median_separate_fit <- function(
 ## Internal: refit one Version1 candidate with the bandwidth selected on the
 ## complete outer training fold.  This is the role of lines 1096 through 1138
 ## and 1196 through 1236 in the original script.
-siv_kliep_ulsif_refit <- function(method, x1, x0, sigma, transform,
-                                  kernel_num, fold) {
+lsiv_kliep_ulsif_refit <- function(method, x1, x0, sigma, transform,
+                                   kernel_num, fold) {
   x1 <- as.data.frame(x1)
   x0 <- as.data.frame(x0)
   if (!identical(names(x1), names(x0))) names(x0) <- names(x1)
-  tx1 <- siv_kliep_ulsif_common_transform(x1, transform)
-  tx0 <- siv_kliep_ulsif_common_transform(x0, transform)
+  tx1 <- lsiv_kliep_ulsif_common_transform(x1, transform)
+  tx0 <- lsiv_kliep_ulsif_common_transform(x0, transform)
   kernel_num <- min(as.integer(kernel_num), nrow(x1))
   fit <- if (identical(method, "kliep")) {
     tryCatch(
@@ -443,25 +443,25 @@ siv_kliep_ulsif_refit <- function(method, x1, x0, sigma, transform,
   if (is.null(fit)) return(NULL)
   structure(
     list(fit = fit, transform = transform),
-    class = "siv_kliep_ulsif_common"
+    class = "lsiv_kliep_ulsif_common"
   )
 }
 
 ## Internal: refit one separate-bandwidth candidate for ensemble-weight CV.
-siv_kliep_ulsif_anisotropic_refit <- function(
+lsiv_kliep_ulsif_anisotropic_refit <- function(
     method, x1, x0, bandwidth, transform, kernel_num, fold) {
-  siv_kliep_ulsif_anisotropic_fit(
+  lsiv_kliep_ulsif_anisotropic_fit(
     method, x1, x0, bandwidth = bandwidth, transform = transform,
     kernel_num = kernel_num, fold = fold, centers = NULL, cv = FALSE
   )
 }
 
-siv_kliep_ulsif_predict <- function(object, newdata) {
-  if (inherits(object, "siv_kliep_ulsif_common")) {
-    newdata <- siv_kliep_ulsif_common_transform(newdata, object$transform)
+lsiv_kliep_ulsif_predict <- function(object, newdata) {
+  if (inherits(object, "lsiv_kliep_ulsif_common")) {
+    newdata <- lsiv_kliep_ulsif_common_transform(newdata, object$transform)
     object <- object$fit
-  } else if (inherits(object, "siv_kliep_ulsif_anisotropic")) {
-    newdata <- siv_kliep_ulsif_transform(
+  } else if (inherits(object, "lsiv_kliep_ulsif_anisotropic")) {
+    newdata <- lsiv_kliep_ulsif_transform(
       newdata, object$transform,
       h_y = object$bandwidth[["h_y"]],
       h_x = object$bandwidth[["h_x"]]
@@ -476,7 +476,7 @@ siv_kliep_ulsif_predict <- function(object, newdata) {
 }
 
 ## Internal: fit one direct density-ratio method on every outer training fold.
-siv_single_density_ratio_grid <- function(
+lsiv_single_density_ratio_grid <- function(
     Y, A, Z, X, grid, weights, folds, baseline_density,
     method = c("kliep", "ulsif"),
     bandwidth = c("cv_separate", "median_separate", "cv_common",
@@ -497,7 +497,7 @@ siv_single_density_ratio_grid <- function(
   if (is.null(xnames)) xnames <- sprintf("X%02d", seq_len(ncol(X)))
   df <- data.frame(Y = Y, X, check.names = FALSE)
   names(df) <- c("Y", xnames)
-  baseline_density <- siv_density_normalize(
+  baseline_density <- lsiv_density_normalize(
     baseline_density, weights, density_floor
   )
   ratio <- matrix(NA_real_, n, M)
@@ -517,21 +517,21 @@ siv_single_density_ratio_grid <- function(
     }
     fit <- switch(
       bandwidth,
-      cv_separate = siv_kliep_ulsif_fit(
+      cv_separate = lsiv_kliep_ulsif_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num, fold = fold, cv_grid = cv_grid,
         methods = method
       ),
-      median_separate = siv_kliep_ulsif_median_separate_fit(
+      median_separate = lsiv_kliep_ulsif_median_separate_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num, methods = method
       ),
-      cv_common = siv_kliep_ulsif_YXcommonbw_fit(
+      cv_common = lsiv_kliep_ulsif_YXcommonbw_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num, fold = fold, cv_grid = cv_grid,
         methods = method
       ),
-      median_common = siv_kliep_ulsif_median_fit(
+      median_common = lsiv_kliep_ulsif_median_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num, methods = method
       )
@@ -544,9 +544,9 @@ siv_single_density_ratio_grid <- function(
       check.names = FALSE
     )
     names(big) <- c("Y", xnames)
-    prediction <- siv_kliep_ulsif_predict(fit$fits[[method]], big)
+    prediction <- lsiv_kliep_ulsif_predict(fit$fits[[method]], big)
     if (any(!is.finite(prediction))) return(NULL)
-    f1 <- siv_ratio_candidate_density(
+    f1 <- lsiv_ratio_candidate_density(
       matrix(prediction, nte, M),
       baseline_density[te, , drop = FALSE], weights,
       density_floor, dr_floor
@@ -580,21 +580,21 @@ siv_single_density_ratio_grid <- function(
 ## Internal: stratified inner folds on the entire outer training fold.  Thus
 ## both density-ratio arms occur in every training/validation split, as in the
 ## cell-balanced Version1 splitting scheme.
-siv_ratio_inner_folds <- function(index, A, Z, nfold) {
+lsiv_ratio_inner_folds <- function(index, A, Z, nfold) {
   nfold <- max(2L, as.integer(nfold))
-  local <- siv_make_folds(length(index), A[index], Z[index], nfold)
+  local <- lsiv_make_folds(length(index), A[index], Z[index], nfold)
   lapply(local, function(ii) index[ii])
 }
 
 ## Internal: turn a joint density-ratio candidate into a conditional Z = 1
 ## density.  Row normalisation removes the unknown X-only factor.
-siv_ratio_candidate_density <- function(ratio, f0, weights,
-                                        density_floor, dr_floor) {
+lsiv_ratio_candidate_density <- function(ratio, f0, weights,
+                                         density_floor, dr_floor) {
   ratio <- as.matrix(ratio)
   ratio[!is.finite(ratio)] <- dr_floor
   candidate <- ratio * f0
-  candidate <- siv_density_normalize(candidate, weights,
-                                     dr_floor * density_floor)
+  candidate <- lsiv_density_normalize(candidate, weights,
+                                      dr_floor * density_floor)
   candidate
 }
 
@@ -602,7 +602,7 @@ siv_ratio_candidate_density <- function(ratio, f0, weights,
 ## direct ratio candidates are always used.  Their bandwidths come from the
 ## median heuristic, while their ensemble weights minimize inner-validation
 ## MSPE (also known as ISE) at the conditional-density level.
-siv_kliep_ulsif_median_ratio_grid <- function(
+lsiv_kliep_ulsif_median_ratio_grid <- function(
     Y, A, Z, X, grid, weights, folds, baseline_density,
     kernel_num = 100L, fold = 5L, dr_floor = 1e-4,
     density_floor = 1e-4, min_arm = 10L, require_complete = TRUE) {
@@ -617,7 +617,7 @@ siv_kliep_ulsif_median_ratio_grid <- function(
   if (is.null(xnames)) xnames <- sprintf("X%02d", seq_len(ncol(X)))
   df <- data.frame(Y = Y, X, check.names = FALSE)
   names(df) <- c("Y", xnames)
-  baseline_density <- siv_density_normalize(
+  baseline_density <- lsiv_density_normalize(
     baseline_density, weights, density_floor
   )
 
@@ -647,7 +647,7 @@ siv_kliep_ulsif_median_ratio_grid <- function(
       return(NULL)
     }
 
-    full <- siv_kliep_ulsif_median_fit(
+    full <- lsiv_kliep_ulsif_median_fit(
       df[i1, , drop = FALSE], df[i0, , drop = FALSE],
       kernel_num = kernel_num
     )
@@ -657,7 +657,7 @@ siv_kliep_ulsif_median_ratio_grid <- function(
 
     ## Estimate only the library weights by inner validation.  In contrast to
     ## the slow path, no bandwidth candidate search is repeated here.
-    inner <- siv_ratio_inner_folds(tr, A, Z, fold)
+    inner <- lsiv_ratio_inner_folds(tr, A, Z, fold)
     cv_ratio <- list(
       kliep = matrix(NA_real_, length(tr), M,
                      dimnames = list(as.character(tr), NULL)),
@@ -678,14 +678,14 @@ siv_kliep_ulsif_median_ratio_grid <- function(
       )
       names(big) <- c("Y", xnames)
       for (method in c("kliep", "ulsif")) {
-        inner_fit <- siv_kliep_ulsif_refit(
+        inner_fit <- lsiv_kliep_ulsif_refit(
           method, df[vi1, , drop = FALSE], df[vi0, , drop = FALSE],
           sigma = full$sigma_selected[[method]],
           transform = full$transform,
           kernel_num = kernel_num, fold = fold
         )
         if (is.null(inner_fit)) return(NULL)
-        pred <- siv_kliep_ulsif_predict(inner_fit, big)
+        pred <- lsiv_kliep_ulsif_predict(inner_fit, big)
         if (any(!is.finite(pred))) return(NULL)
         cv_ratio[[method]][as.character(va), ] <- matrix(pred, nva, M)
       }
@@ -693,7 +693,7 @@ siv_kliep_ulsif_median_ratio_grid <- function(
 
     f0_cv <- baseline_density[tr, , drop = FALSE]
     density_cv <- lapply(cv_ratio, function(r) {
-      siv_ratio_candidate_density(
+      lsiv_ratio_candidate_density(
         r[as.character(tr), , drop = FALSE], f0_cv, weights,
         density_floor, dr_floor
       )
@@ -711,14 +711,14 @@ siv_kliep_ulsif_median_ratio_grid <- function(
       }
     }
     observed <- cbind(
-      kliep = siv_density_at_observed(
+      kliep = lsiv_density_at_observed(
         density_cv$kliep[target_pos, , drop = FALSE], grid, Y[tr][target_pos]
       ),
-      ulsif = siv_density_at_observed(
+      ulsif = lsiv_density_at_observed(
         density_cv$ulsif[target_pos, , drop = FALSE], grid, Y[tr][target_pos]
       )
     )
-    ew <- siv_ratio_ensemble_weights(
+    ew <- lsiv_ratio_ensemble_weights(
       H, colMeans(observed)
     )
     ensemble_weights[k, ] <- ew$weight
@@ -732,9 +732,9 @@ siv_kliep_ulsif_median_ratio_grid <- function(
     )
     names(big) <- c("Y", xnames)
     candidate_test <- lapply(full$fits, function(object) {
-      pred <- siv_kliep_ulsif_predict(object, big)
+      pred <- lsiv_kliep_ulsif_predict(object, big)
       if (any(!is.finite(pred))) return(NULL)
-      siv_ratio_candidate_density(
+      lsiv_ratio_candidate_density(
         matrix(pred, nte, M), baseline_density[te, , drop = FALSE],
         weights, density_floor, dr_floor
       )
@@ -742,7 +742,7 @@ siv_kliep_ulsif_median_ratio_grid <- function(
     if (any(vapply(candidate_test, is.null, logical(1L)))) return(NULL)
     f1 <- ew$weight[1L] * candidate_test$kliep +
       ew$weight[2L] * candidate_test$ulsif
-    f1 <- siv_density_normalize(f1, weights, density_floor)
+    f1 <- lsiv_density_normalize(f1, weights, density_floor)
     RY[te, ] <- f1 / baseline_density[te, , drop = FALSE]
   }
 
@@ -772,10 +772,10 @@ siv_kliep_ulsif_median_ratio_grid <- function(
   )
 }
 
-## Internal: the full Version1 KLIEP/uLSIF density-ratio ensemble on the SIV
+## Internal: the full Version1 KLIEP/uLSIF density-ratio ensemble on the LSIV
 ## outcome grid.  Returns NULL when a fold cannot support both candidates, so
-## SIV() can use its documented logistic fallback.
-siv_kliep_ulsif_ratio_grid <- function(
+## LSIV() can use its documented logistic fallback.
+lsiv_kliep_ulsif_ratio_grid <- function(
     Y, A, Z, X, grid, weights, folds, baseline_density,
     kernel_num = 100L, fold = 5L, dr_floor = 1e-4,
     density_floor = 1e-4, min_arm = 10L, require_complete = TRUE,
@@ -793,7 +793,7 @@ siv_kliep_ulsif_ratio_grid <- function(
   if (is.null(xnames)) xnames <- sprintf("X%02d", seq_len(ncol(X)))
   df <- data.frame(Y = Y, X, check.names = FALSE)
   names(df) <- c("Y", xnames)
-  baseline_density <- siv_density_normalize(
+  baseline_density <- lsiv_density_normalize(
     baseline_density, weights, density_floor
   )
 
@@ -824,17 +824,17 @@ siv_kliep_ulsif_ratio_grid <- function(
     }
 
     full <- if (identical(bandwidth_mode, "cv_separate")) {
-      siv_kliep_ulsif_fit(
+      lsiv_kliep_ulsif_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num, fold = fold, cv_grid = cv_grid
       )
     } else if (identical(bandwidth_mode, "median_separate")) {
-      siv_kliep_ulsif_median_separate_fit(
+      lsiv_kliep_ulsif_median_separate_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num
       )
     } else {
-      siv_kliep_ulsif_YXcommonbw_fit(
+      lsiv_kliep_ulsif_YXcommonbw_fit(
         df[i1, , drop = FALSE], df[i0, , drop = FALSE],
         kernel_num = kernel_num, fold = fold, cv_grid = cv_grid
       )
@@ -846,7 +846,7 @@ siv_kliep_ulsif_ratio_grid <- function(
     selected_bandwidth[k] <- list(full$selected_bandwidth)
     bandwidth_range[k] <- list(full$bandwidth_range)
 
-    inner <- siv_ratio_inner_folds(tr, A, Z, fold)
+    inner <- lsiv_ratio_inner_folds(tr, A, Z, fold)
     cv_ratio <- list(
       kliep = matrix(NA_real_, length(tr), M,
                      dimnames = list(as.character(tr), NULL)),
@@ -868,14 +868,14 @@ siv_kliep_ulsif_ratio_grid <- function(
       names(big) <- c("Y", xnames)
       for (method in c("kliep", "ulsif")) {
         inner_fit <- if (!identical(bandwidth_mode, "cv_common")) {
-          siv_kliep_ulsif_anisotropic_refit(
+          lsiv_kliep_ulsif_anisotropic_refit(
             method, df[vi1, , drop = FALSE], df[vi0, , drop = FALSE],
             bandwidth = full$selected_bandwidth[method, ],
             transform = full$transform,
             kernel_num = kernel_num, fold = fold
           )
         } else {
-          siv_kliep_ulsif_refit(
+          lsiv_kliep_ulsif_refit(
             method, df[vi1, , drop = FALSE], df[vi0, , drop = FALSE],
             sigma = full$sigma_selected[[method]],
             transform = full$transform,
@@ -883,7 +883,7 @@ siv_kliep_ulsif_ratio_grid <- function(
           )
         }
         if (is.null(inner_fit)) return(NULL)
-        pred <- siv_kliep_ulsif_predict(inner_fit, big)
+        pred <- lsiv_kliep_ulsif_predict(inner_fit, big)
         if (any(!is.finite(pred))) return(NULL)
         cv_ratio[[method]][as.character(va), ] <- matrix(pred, nva, M)
       }
@@ -891,7 +891,7 @@ siv_kliep_ulsif_ratio_grid <- function(
 
     f0_cv <- baseline_density[tr, , drop = FALSE]
     density_cv <- lapply(cv_ratio, function(r) {
-      siv_ratio_candidate_density(
+      lsiv_ratio_candidate_density(
         r[as.character(tr), , drop = FALSE], f0_cv, weights,
         density_floor, dr_floor
       )
@@ -909,14 +909,14 @@ siv_kliep_ulsif_ratio_grid <- function(
       }
     }
     observed <- cbind(
-      kliep = siv_density_at_observed(
+      kliep = lsiv_density_at_observed(
         density_cv$kliep[target_pos, , drop = FALSE], grid, Y[tr][target_pos]
       ),
-      ulsif = siv_density_at_observed(
+      ulsif = lsiv_density_at_observed(
         density_cv$ulsif[target_pos, , drop = FALSE], grid, Y[tr][target_pos]
       )
     )
-    ew <- siv_ratio_ensemble_weights(
+    ew <- lsiv_ratio_ensemble_weights(
       H, colMeans(observed)
     )
     ensemble_weights[k, ] <- ew$weight
@@ -930,9 +930,9 @@ siv_kliep_ulsif_ratio_grid <- function(
     )
     names(big) <- c("Y", xnames)
     candidate_test <- lapply(full$fits, function(object) {
-      pred <- siv_kliep_ulsif_predict(object, big)
+      pred <- lsiv_kliep_ulsif_predict(object, big)
       if (any(!is.finite(pred))) return(NULL)
-      siv_ratio_candidate_density(
+      lsiv_ratio_candidate_density(
         matrix(pred, nte, M), baseline_density[te, , drop = FALSE],
         weights, density_floor, dr_floor
       )
@@ -940,10 +940,10 @@ siv_kliep_ulsif_ratio_grid <- function(
     if (any(vapply(candidate_test, is.null, logical(1L)))) return(NULL)
     f1 <- ew$weight[1L] * candidate_test$kliep +
       ew$weight[2L] * candidate_test$ulsif
-    f1 <- siv_density_normalize(f1, weights, density_floor)
+    f1 <- lsiv_density_normalize(f1, weights, density_floor)
     ratio <- f1 / baseline_density[te, , drop = FALSE]
     ratio <- pmax(ratio, dr_floor)
-    f1 <- siv_density_normalize(
+    f1 <- lsiv_density_normalize(
       ratio * baseline_density[te, , drop = FALSE], weights, density_floor
     )
     RY[te, ] <- f1 / baseline_density[te, , drop = FALSE]
@@ -986,6 +986,6 @@ siv_kliep_ulsif_ratio_grid <- function(
   )
 }
 
-siv_kliep_ulsif_YXcommonbw_ratio_grid <- function(...) {
-  siv_kliep_ulsif_ratio_grid(..., bandwidth_mode = "cv_common")
+lsiv_kliep_ulsif_YXcommonbw_ratio_grid <- function(...) {
+  lsiv_kliep_ulsif_ratio_grid(..., bandwidth_mode = "cv_common")
 }

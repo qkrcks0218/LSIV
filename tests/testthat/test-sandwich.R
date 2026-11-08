@@ -1,4 +1,4 @@
-test_that("siv_sandwich reproduces the closed-form sandwich for a GLM", {
+test_that("lsiv_sandwich reproduces the closed-form sandwich for a GLM", {
   ## For a logistic regression the stacked-EE sandwich must coincide with the
   ## usual Huber-White estimator.
   set.seed(11)
@@ -8,7 +8,7 @@ test_that("siv_sandwich reproduces the closed-form sandwich for a GLM", {
   D <- cbind(1, x)
   fit <- glm(y ~ x, family = binomial())
   ef <- function(th) D * as.vector(y - expit(D %*% th))
-  sw <- siv_sandwich(ef, coef(fit))
+  sw <- lsiv_sandwich(ef, coef(fit))
   ## closed form: (X'WX)^{-1} X' diag(r^2) X (X'WX)^{-1}
   p <- fitted(fit); r <- y - p
   bread <- solve(t(D) %*% (D * p * (1 - p)))
@@ -18,7 +18,7 @@ test_that("siv_sandwich reproduces the closed-form sandwich for a GLM", {
   expect_true(all(sw$checks))
 })
 
-test_that("siv_sandwich scaling is 1/n and diagnostics behave", {
+test_that("lsiv_sandwich scaling is 1/n and diagnostics behave", {
   set.seed(12)
   make <- function(n) {
     y <- rnorm(n, 2, 3)
@@ -26,20 +26,20 @@ test_that("siv_sandwich scaling is 1/n and diagnostics behave", {
          par = c(mean(y), var(y) * (n - 1) / n))
   }
   s1 <- make(1000); s2 <- make(4000)
-  v1 <- siv_sandwich(s1$ef, s1$par)$vcov[1, 1]
-  v2 <- siv_sandwich(s2$ef, s2$par)$vcov[1, 1]
+  v1 <- lsiv_sandwich(s1$ef, s1$par)$vcov[1, 1]
+  v2 <- lsiv_sandwich(s2$ef, s2$par)$vcov[1, 1]
   ## variance of a sample mean: exactly var(y)/n
   expect_equal(v1 * 1000 / 9, 1, tolerance = 0.2)
   expect_lt(v2, v1)
-  chk <- siv_check_vcov(diag(3), p = 3)
+  chk <- lsiv_check_vcov(diag(3), p = 3)
   expect_true(all(chk))
-  expect_false(siv_check_vcov(matrix(c(1, 2, 0, 1), 2), p = 2)["symmetric"])
-  expect_false(siv_check_vcov(diag(c(1, -1)), p = 2)["diag_nonneg"])
-  expect_false(siv_check_vcov(diag(2), p = 3)["dim_ok"])
+  expect_false(lsiv_check_vcov(matrix(c(1, 2, 0, 1), 2), p = 2)["symmetric"])
+  expect_false(lsiv_check_vcov(diag(c(1, -1)), p = 2)["diag_nonneg"])
+  expect_false(lsiv_check_vcov(diag(2), p = 3)["dim_ok"])
 })
 
-test_that("siv_sandwich errors when estfun and theta are non-conformable", {
-  expect_error(siv_sandwich(function(th) matrix(0, 10, 3), c(1, 2)),
+test_that("lsiv_sandwich errors when estfun and theta are non-conformable", {
+  expect_error(lsiv_sandwich(function(th) matrix(0, 10, 3), c(1, 2)),
                "returned 3 columns")
 })
 
@@ -51,8 +51,8 @@ test_that("the sandwich accounts for nuisance estimation (bread/meat/vcov)", {
   ## enter the reported sandwich covariance.
   set.seed(61)
   d <- test_dgp_liu2021(3000)
-  f <- SIV_Liu(d$Y, d$A, d$Z, d$X, estimator = "ipw", outcome_type = "binary",
-               pi_formula = ~ Z + C1 + Z:C1)
+  f <- LSIV_Liu(d$Y, d$A, d$Z, d$X, estimator = "ipw", outcome_type = "binary",
+                pi_formula = ~ Z + C1 + Z:C1)
   nm <- names(coef(f))
   ith <- match("theta", nm)
 

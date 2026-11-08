@@ -1,5 +1,5 @@
 files <- sort(list.files(path="./Ratio",
-                         pattern = "JC_SIV_Density_B[0-9]+\\.rds$",
+                         pattern = "JC_LSIV_Density_B[0-9]+\\.rds$",
                          full.names = TRUE))
 S <- length(files)
 ref <- readRDS(files[1L])
@@ -45,10 +45,10 @@ colnames(summary_table) <- c("Min", "Q1", "Q2", "Q3", "Max")
 
 out <- data.frame(az = rownames(summary_table), summary_table,
                   num_crossfit = S, row.names = NULL, check.names = FALSE)
-write.csv(out, "JC_SIV_DensityRatio_Summary.csv", row.names = FALSE)
+write.csv(out, "JC_LSIV_DensityRatio_Summary.csv", row.names = FALSE)
 saveRDS(list(grid = grid, files = basename(files), f_med = f_med,
              ratio = ratio),
-        "JC_SIV_DensityRatio.rds")
+        "JC_LSIV_DensityRatio.rds")
 
 cat(sprintf("\nSummary statistics of r_i(y,a,z) across y in {%g,...,%g} and ",
             min(grid), max(grid)),

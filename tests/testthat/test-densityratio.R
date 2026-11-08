@@ -1,26 +1,26 @@
 ## ---------------------------------------------------------------------------
 ## The KLIEP density-ratio engine ported from the UDID package, and its use as
-## the R_Y estimator of eq. (15) inside SIV().
+## the R_Y estimator of eq. (15) inside LSIV().
 ## ---------------------------------------------------------------------------
 
 test_that("KLIEP and KLIEP/uLSIF use the requested numerical floor", {
-  expect_identical(formals(siv_kliep_ratio_grid)$dr_floor, 1e-4)
-  expect_identical(formals(siv_kliep_ulsif_median_ratio_grid)$dr_floor, 1e-4)
-  expect_identical(formals(siv_kliep_ulsif_ratio_grid)$dr_floor, 1e-4)
+  expect_identical(formals(lsiv_kliep_ratio_grid)$dr_floor, 1e-4)
+  expect_identical(formals(lsiv_kliep_ulsif_median_ratio_grid)$dr_floor, 1e-4)
+  expect_identical(formals(lsiv_kliep_ulsif_ratio_grid)$dr_floor, 1e-4)
   expect_identical(
-    formals(siv_kliep_ulsif_median_ratio_grid)$density_floor, 1e-4
+    formals(lsiv_kliep_ulsif_median_ratio_grid)$density_floor, 1e-4
   )
-  expect_identical(formals(siv_kliep_ulsif_ratio_grid)$density_floor, 1e-4)
+  expect_identical(formals(lsiv_kliep_ulsif_ratio_grid)$density_floor, 1e-4)
 })
 
-test_that("siv_kliep() recovers a known Gaussian density ratio", {
+test_that("lsiv_kliep() recovers a known Gaussian density ratio", {
   ## p1 = N(mu, 1), p2 = N(0, 1) => log r(y) = mu*y - mu^2/2
   set.seed(401)
   mu <- 0.5
   x1 <- matrix(stats::rnorm(4000, mu)); x2 <- matrix(stats::rnorm(4000, 0))
-  fit <- siv_kliep(x1, x2, n_y_cols = 1, sigma = "median")
+  fit <- lsiv_kliep(x1, x2, n_y_cols = 1, sigma = "median")
   yy <- seq(-1.5, 1.5, by = 0.5)
-  est <- siv_kliep_predict(matrix(yy), fit)
+  est <- lsiv_kliep_predict(matrix(yy), fit)
   truth <- stats::dnorm(yy, mu) / stats::dnorm(yy, 0)
   expect_true(all(est > 0))
   expect_true(all(is.finite(est)))
@@ -41,8 +41,8 @@ test_that("the 'auto' bandwidth search improves on the median heuristic", {
   truth <- log(stats::dnorm(yy, mu) / stats::dnorm(yy, 0))
   err <- function(sg) {
     set.seed(403)
-    f <- siv_kliep(x1, x2, n_y_cols = 1, sigma = sg)
-    max(abs(log(siv_kliep_predict(matrix(yy), f)) - truth))
+    f <- lsiv_kliep(x1, x2, n_y_cols = 1, sigma = sg)
+    max(abs(log(lsiv_kliep_predict(matrix(yy), f)) - truth))
   }
   ## the cross-validated search is the hyper-parameter tuning; it must not be
   ## worse than the median heuristic on a problem where the heuristic is poor
@@ -53,21 +53,21 @@ test_that("the bandwidth search is reproducible under set.seed()", {
   ## The CV fold labels are drawn with R's RNG, not arma::randperm(), precisely
   ## so that this holds.
   set.seed(404); a <- matrix(stats::rnorm(300, 0.5)); b <- matrix(stats::rnorm(300))
-  set.seed(405); f1 <- siv_kliep(a, b, sigma = "auto")
-  set.seed(405); f2 <- siv_kliep(a, b, sigma = "auto")
+  set.seed(405); f1 <- lsiv_kliep(a, b, sigma = "auto")
+  set.seed(405); f2 <- lsiv_kliep(a, b, sigma = "auto")
   expect_identical(f1$kernel_info$sigma, f2$kernel_info$sigma)
   expect_equal(f1$kernel_weights, f2$kernel_weights)
   ## and the median path too (kernel centres are sampled with R's RNG)
-  set.seed(406); g1 <- siv_kliep(a, b, sigma = "median")
-  set.seed(406); g2 <- siv_kliep(a, b, sigma = "median")
+  set.seed(406); g1 <- lsiv_kliep(a, b, sigma = "median")
+  set.seed(406); g2 <- lsiv_kliep(a, b, sigma = "median")
   expect_equal(g1$kernel_weights, g2$kernel_weights)
 })
 
-test_that("siv_kliep() validates its inputs", {
+test_that("lsiv_kliep() validates its inputs", {
   a <- matrix(stats::rnorm(50)); b <- matrix(stats::rnorm(50))
-  expect_error(siv_kliep(a, cbind(b, b)), "same number of columns")
-  expect_error(siv_kliep(a[0, , drop = FALSE], b), "non-empty")
-  expect_error(siv_kliep(a, b, n_y_cols = 2), "n_y_cols")
+  expect_error(lsiv_kliep(a, cbind(b, b)), "same number of columns")
+  expect_error(lsiv_kliep(a[0, , drop = FALSE], b), "non-empty")
+  expect_error(lsiv_kliep(a, b, n_y_cols = 2), "n_y_cols")
 })
 
 test_that("the per-dimension kernel helpers behave as documented", {
@@ -75,7 +75,7 @@ test_that("the per-dimension kernel helpers behave as documented", {
   x <- matrix(stats::rnorm(20), 10, 2)
   ctr <- matrix(stats::rnorm(8), 4, 2)
   sg <- c(0.7, 1.3)
-  K <- SIV:::siv_gaussian_kernel_matrix_bw(x, ctr, sg)
+  K <- LSIV:::lsiv_gaussian_kernel_matrix_bw(x, ctr, sg)
   expect_equal(dim(K), c(10L, 4L))
   ## reference computation
   ref <- outer(seq_len(10), seq_len(4), Vectorize(function(i, c)
@@ -83,19 +83,19 @@ test_that("the per-dimension kernel helpers behave as documented", {
   expect_equal(K, ref, tolerance = 1e-12)
   ## the ratio is the kernel matrix times the weights
   w <- c(0.1, 0.4, 0.2, 0.3)
-  expect_equal(as.numeric(SIV:::siv_gaussian_kernel_ratio_bw(x, ctr, sg, w)),
+  expect_equal(as.numeric(LSIV:::lsiv_gaussian_kernel_ratio_bw(x, ctr, sg, w)),
                as.numeric(K %*% w), tolerance = 1e-12)
   ## scalar-bandwidth path agrees with the per-dimension one at equal sigmas
-  expect_equal(as.numeric(SIV:::siv_gaussian_kernel_ratio(x, ctr, 0.9, w)),
-               as.numeric(SIV:::siv_gaussian_kernel_ratio_bw(x, ctr, c(0.9, 0.9), w)),
+  expect_equal(as.numeric(LSIV:::lsiv_gaussian_kernel_ratio(x, ctr, 0.9, w)),
+               as.numeric(LSIV:::lsiv_gaussian_kernel_ratio_bw(x, ctr, c(0.9, 0.9), w)),
                tolerance = 1e-12)
 })
 
-test_that("SIV(ratio_method = 'kliep') runs and reports what it used", {
+test_that("LSIV(ratio_method = 'kliep') runs and reports what it used", {
   skip_on_cran()
   set.seed(408)
   d <- test_dgp(1500, "continuous")
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, d$X, y_type = "continuous",
     y_num.grid = 61L, outcome_include.observed = FALSE,
     Overall.Estimation_num.crossfit = 1L,
@@ -103,7 +103,7 @@ test_that("SIV(ratio_method = 'kliep') runs and reports what it used", {
     ratio_method = "kliep"
   ))
   expect_true(is.finite(coef(f)))
-  expect_true(is.finite(siv_se(f)))
+  expect_true(is.finite(lsiv_se(f)))
   expect_true(f$ratio_method %in%
                 c("kliep", "logistic (kliep fallback)"))
   if (identical(f$ratio_method, "kliep")) {
@@ -118,11 +118,11 @@ test_that("the KLIEP/uLSIF ratio estimator ensembles both candidates", {
   skip_on_cran()
   set.seed(413)
   d <- test_dgp(1000, "continuous")
-  gw <- siv_grid(d$Y, d$A, "continuous", n_grid = 41L,
-                 include_observed = FALSE)
-  folds <- siv_make_folds(nrow(d$X), d$A, d$Z, 2L)
+  gw <- lsiv_grid(d$Y, d$A, "continuous", n_grid = 41L,
+                  include_observed = FALSE)
+  folds <- lsiv_make_folds(nrow(d$X), d$A, d$Z, 2L)
   oracle <- test_oracle_nuisance(d$X, gw$grid, gw$weights, "continuous")
-  fit <- siv_kliep_ulsif_ratio_grid(
+  fit <- lsiv_kliep_ulsif_ratio_grid(
     d$Y, d$A, d$Z, d$X, gw$grid, gw$weights, folds,
     oracle$fY_z0, kernel_num = 40L, fold = 2L
   )
@@ -150,8 +150,8 @@ test_that("separate-bandwidth preprocessing standardises every X column", {
                    X2 = stats::rnorm(80, sd = 10))
   x0 <- data.frame(Y = stats::rnorm(100), X1 = stats::rnorm(100, sd = 3),
                    X2 = stats::rnorm(100, sd = 20))
-  tr <- siv_kliep_ulsif_transform_info(x1, x0)
-  z <- siv_kliep_ulsif_transform(
+  tr <- lsiv_kliep_ulsif_transform_info(x1, x0)
+  z <- lsiv_kliep_ulsif_transform(
     rbind(x1, x0), tr, h_y = 0.7, h_x = 2
   )
   expect_equal(unname(apply(z[c("X1", "X2")], 2L, stats::sd)), c(0.5, 0.5),
@@ -168,20 +168,20 @@ test_that("common-bandwidth preprocessing standardises Y and every X column", {
   x0 <- data.frame(Y = stats::rnorm(100, sd = 4),
                    X1 = stats::rnorm(100, sd = 3),
                    X2 = stats::rnorm(100, sd = 20))
-  tr <- siv_kliep_ulsif_common_transform_info(x1, x0)
-  z <- siv_kliep_ulsif_common_transform(rbind(x1, x0), tr)
+  tr <- lsiv_kliep_ulsif_common_transform_info(x1, x0)
+  z <- lsiv_kliep_ulsif_common_transform(rbind(x1, x0), tr)
   expect_equal(unname(colMeans(z)), rep(0, 3L), tolerance = 1e-12)
   expect_equal(unname(apply(z, 2L, stats::sd)), rep(1, 3L),
                tolerance = 1e-12)
 
-  cv_fit <- siv_kliep_ulsif_YXcommonbw_fit(
+  cv_fit <- lsiv_kliep_ulsif_YXcommonbw_fit(
     x1, x0, kernel_num = 20L, fold = 2L, methods = "ulsif"
   )
-  median_fit <- siv_kliep_ulsif_median_fit(
+  median_fit <- lsiv_kliep_ulsif_median_fit(
     x1, x0, kernel_num = 20L, methods = "ulsif"
   )
-  expect_s3_class(cv_fit$fits$ulsif, "siv_kliep_ulsif_common")
-  expect_s3_class(median_fit$fits$ulsif, "siv_kliep_ulsif_common")
+  expect_s3_class(cv_fit$fits$ulsif, "lsiv_kliep_ulsif_common")
+  expect_s3_class(median_fit$fits$ulsif, "lsiv_kliep_ulsif_common")
   expect_equal(cv_fit$transform$scale, tr$scale)
   expect_equal(median_fit$transform$scale, tr$scale)
   expect_length(cv_fit$sigma_candidates, 3L)
@@ -196,11 +196,11 @@ test_that("the fast ratio estimator CV-weights both median candidates", {
   skip_on_cran()
   set.seed(414)
   d <- test_dgp(800, "continuous")
-  gw <- siv_grid(d$Y, d$A, "continuous", n_grid = 31L,
-                 include_observed = FALSE)
-  folds <- siv_make_folds(nrow(d$X), d$A, d$Z, 2L)
+  gw <- lsiv_grid(d$Y, d$A, "continuous", n_grid = 31L,
+                  include_observed = FALSE)
+  folds <- lsiv_make_folds(nrow(d$X), d$A, d$Z, 2L)
   oracle <- test_oracle_nuisance(d$X, gw$grid, gw$weights, "continuous")
-  fit <- siv_kliep_ulsif_median_ratio_grid(
+  fit <- lsiv_kliep_ulsif_median_ratio_grid(
     d$Y, d$A, d$Z, d$X, gw$grid, gw$weights, folds,
     oracle$fY_z0, kernel_num = 30L
   )
@@ -221,36 +221,36 @@ test_that("the fast ratio estimator CV-weights both median candidates", {
 test_that("the simplified ratio interface is validated", {
   set.seed(409)
   d <- test_dgp(300, "continuous")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
-                   ratio_method = "nonesuch"), "should be one of")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
-                   ratio_bandwidth = "nonesuch"), "should be one of")
-  expect_error(SIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
-                   ratio_ensemble.loss = "ise"), "unused argument")
-  expect_error(SIV(
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
+                    ratio_method = "nonesuch"), "should be one of")
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
+                    ratio_bandwidth = "nonesuch"), "should be one of")
+  expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
+                    ratio_ensemble.loss = "ise"), "unused argument")
+  expect_error(LSIV(
     d$Y, d$A, d$Z, d$X, y_type = "continuous",
     ratio_bandwidth.cv.grid = c(0, 0.5)
   ), "strictly between 0 and 1")
-  expect_false("estimate_ratio" %in% names(formals(SIV)))
-  expect_false("plugin" %in% eval(formals(SIV)$ratio_method))
+  expect_false("estimate_ratio" %in% names(formals(LSIV)))
+  expect_false("plugin" %in% eval(formals(LSIV)$ratio_method))
 
   ## Binary outcomes always use the automatic plug-in ratio.
   db <- test_dgp(300, "binary")
-  f <- SIV(db$Y, db$A, db$Z, db$X, y_type = "binary",
-           ratio_method = "ulsif")
+  f <- LSIV(db$Y, db$A, db$Z, db$X, y_type = "binary",
+            ratio_method = "ulsif")
   expect_identical(f$ratio_method, "plugin (automatic)")
 })
 
 test_that("ratio ensemble minimizes MSPE without a loss-selection option", {
   H <- diag(2)
   h <- c(0.8, 0.2)
-  fit <- SIV:::siv_ratio_ensemble_weights(H, h)
+  fit <- LSIV:::lsiv_ratio_ensemble_weights(H, h)
 
   expect_equal(fit$weight, c(0.8, 0.2), tolerance = 1e-12)
   expect_equal(fit$weight, fit$mspe)
   expect_equal(fit$mse, fit$mspe)
   expect_identical(fit$loss, "mspe")
-  expect_error(SIV:::siv_ratio_ensemble_weights(H, h, loss = "logscore"),
+  expect_error(LSIV:::lsiv_ratio_ensemble_weights(H, h, loss = "logscore"),
                "unused argument")
 })
 
@@ -258,7 +258,7 @@ test_that("standalone uLSIF uses the selected bandwidth rule", {
   skip_if_not_installed("densityratio")
   set.seed(411)
   d <- test_dgp(300, "continuous")
-  f <- suppressWarnings(SIV(
+  f <- suppressWarnings(LSIV(
     d$Y, d$A, d$Z, d$X, y_type = "continuous",
     Overall.Estimation_num.crossfit = 1L,
     Overall.Estimation_num.fold = 1L,

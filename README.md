@@ -1,21 +1,20 @@
 # Logit-Separable Instrumental Variable Approach
 
-This repository contains the `SIV` R package implementing the methodologies in [Park and Tchetgen Tchetgen (2026)](https://arxiv.org/abs/2602.02265). The package provides nonparametric inference for the average and quantile treatment effects on the treated under a logit-separable binary treatment choice model, together with a falsification test of the model's observed data implications.
+This repository contains the `LSIV` R package implementing the methodologies in [Park and Tchetgen Tchetgen (2026)](https://arxiv.org/abs/2602.02265). The package provides nonparametric inference for the average and quantile treatment effects on the treated under a logit-separable binary treatment choice model, together with a falsification test of the model's observed data implications.
 
 The package is currently in development. 
 
 ## Installation
 
-To install the package from a local copy, set your working directory to the package source directory containing `DESCRIPTION` and run the commands below.
+To install the package from GitHub, run the commands below. If `devtools` is not installed, run `install.packages("devtools")` first.
 
 ```r
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes")
-}
-
-remotes::install_local(".", dependencies = TRUE, upgrade = "never")
-library(SIV)
+library(devtools)
+install_github("qkrcks0218/LSIV")
+library(LSIV)
 ```
+
+Missing required R package dependencies declared in `DESCRIPTION` are installed automatically.
 
 The package requires R 4.0.0 or later and a C++17 compiler for source installation. On Windows, install the [Rtools version matching your R installation](https://cran.r-project.org/bin/windows/Rtools/).
 
@@ -121,7 +120,7 @@ where $\mathbb{P}_N$ denotes the empirical average and each observation's nuisan
 
 ### Nuisance Function Estimation
 
-The default procedure uses **two-fold cross-fitting**. Nuisance functions are estimated on the training observations and evaluated on the held-out fold. `SIV()` repeats this procedure three times by default and reports the median point estimate. For the ATT, the variance adjustment combines the repetition-specific variance estimates with the squared deviations from the median estimate. The numbers of repetitions and folds are controlled by `Overall.Estimation_num.crossfit` and `Overall.Estimation_num.fold`.
+The default procedure uses **two-fold cross-fitting**. Nuisance functions are estimated on the training observations and evaluated on the held-out fold. `LSIV()` repeats this procedure three times by default and reports the median point estimate. For the ATT, the variance adjustment combines the repetition-specific variance estimates with the squared deviations from the median estimate. The numbers of repetitions and folds are controlled by `Overall.Estimation_num.crossfit` and `Overall.Estimation_num.fold`.
 
 **Instrument and treatment probabilities.** The conditional probabilities $\Pr(Z=1\mid X)$ and $\Pr(A=1\mid Z,X)$ are estimated with the Super Learner wrapper `MySL()`. Available learner groups include GLM, lasso/ridge, earth, GAM, XGBoost, polynomial splines, random forests, gradient boosting machines, and a one-layer neural network. `Overall.Estimation_SL.list` selects the groups; the default is `1`, corresponding to GLM.
 
@@ -149,7 +148,7 @@ The procedure combines a binomial order-statistic confidence interval for the ob
 
 The default adjustment is `QTT_c1 = 0.02 * (1 - level)`, giving 0.001 for a 95% interval. `QTT_support` supplies a complete discrete counterfactual support, while `QTT_bounds` supplies known bounds for both potential outcomes. Binary outcomes automatically use bounds `c(0, 1)`. When the acceptance set is empty, the package projects the specified support or bounds; without either, the fallback interval is unbounded.
 
-With repeated cross-fitting, the reported lower and upper QTT confidence limits are the respective medians of the repetition-specific endpoints. Use `confint()` to extract these intervals. QTT inference uses test inversion, and the corresponding entries returned by `siv_se()` are `NA`.
+With repeated cross-fitting, the reported lower and upper QTT confidence limits are the respective medians of the repetition-specific endpoints. Use `confint()` to extract these intervals. QTT inference uses test inversion, and the corresponding entries returned by `lsiv_se()` are `NA`.
 
 ### Falsification Test
 
@@ -168,7 +167,7 @@ In practice, the moment dictionary uses outcome bins and covariate cells formed 
 The following self-contained example generates data satisfying logit separability and requests the ATT, three QTTs, and the falsification test in a single fit. The continuous-outcome density ensembles use cross-validation, so this example can take several minutes.
 
 ```r
-library(SIV)
+library(LSIV)
 
 ###########################################
 # Super Learner hyperparameters
@@ -211,11 +210,11 @@ set.seed(2026)
 Data <- simulate_data()
 
 ###########################################
-# SIV: continuous outcomes
+# LSIV: continuous outcomes
 ###########################################
 
 set.seed(2027)
-SIV.Result <- SIV(
+LSIV.Result <- LSIV(
   Data$Y, Data$A, Data$Z, Data$X,
   y_type = "continuous",
   estimand = c("ATT", "QTT"),
@@ -233,30 +232,30 @@ SIV.Result <- SIV(
   falsification_num.boot = 399
 )
 
-coef(SIV.Result)
+coef(LSIV.Result)
 #       ATT  QTT_0.25   QTT_0.5  QTT_0.75
 # 1.0005798 0.9137543 0.9933969 1.1540166
 
-siv_se(SIV.Result)                # ATT standard error; NA for QTTs
-confint(SIV.Result)
+lsiv_se(LSIV.Result)                # ATT standard error; NA for QTTs
+confint(LSIV.Result)
 #              2.5 %   97.5 %
 # ATT      0.7622993 1.238860
 # QTT_0.25 0.5016478 1.319589
 # QTT_0.5  0.4942908 1.480655
 # QTT_0.75 0.4368687 1.574523
 
-summary(SIV.Result)
+summary(LSIV.Result)
 
 ###########################################
 # QTT and falsification results
 ###########################################
 
-SIV.Result$qtt$estimate
-SIV.Result$qtt$ci
-SIV.Result$falsification$p_value
+LSIV.Result$qtt$estimate
+LSIV.Result$qtt$ci
+LSIV.Result$falsification$p_value
 # [1] 0.935
 
-SIV.Result$falsification$reject
+LSIV.Result$falsification$reject
 # [1] FALSE
 ```
 
@@ -271,7 +270,7 @@ set.seed(2028)
 Data.Binary <- simulate_data(binary = TRUE)
 
 set.seed(2029)
-SIV.Result.Binary <- SIV(
+LSIV.Result.Binary <- LSIV(
   Data.Binary$Y, Data.Binary$A, Data.Binary$Z, Data.Binary$X,
   y_type = "binary",
   Overall.Estimation_SL.list = SL.list,
@@ -279,9 +278,9 @@ SIV.Result.Binary <- SIV(
   Overall.Estimation_num.fold = 2
 )
 
-coef(SIV.Result.Binary)
-siv_se(SIV.Result.Binary)
-confint(SIV.Result.Binary)
+coef(LSIV.Result.Binary)
+lsiv_se(LSIV.Result.Binary)
+confint(LSIV.Result.Binary)
 ```
 
 For a discrete outcome with known support, supply the full support to QTT inversion.  
@@ -292,18 +291,18 @@ The package also provides comparison estimators.
 
 | Function | Method |
 |---|---|
-| `SIV_Liu()` | IPW, outcome-regression, and doubly robust estimators of [Liu et al. (2020)](https://doi.org/10.5705/ss.202017.0196) |
-| `SIV_Sun()` | Doubly robust estimator of [Sun, Miao, and Wickramarachchi](https://doi.org/10.5705/ss.202023.0383), mapped to the ATT |
-| `SIV_Sun2021()` | Instrumental variable estimator for nonignorable missing data of [Sun et al. (2018)](https://doi.org/10.5705/ss.202016.0324) |
-| `SIV_LATE()` | Influence function estimator of the local average treatment effect under its corresponding IV assumptions |
+| `LSIV_Liu()` | IPW, outcome-regression, and doubly robust estimators of [Liu et al. (2020)](https://doi.org/10.5705/ss.202017.0196) |
+| `LSIV_Sun()` | Doubly robust estimator of [Sun, Miao, and Wickramarachchi](https://doi.org/10.5705/ss.202023.0383), mapped to the ATT |
+| `LSIV_Sun2021()` | Instrumental variable estimator for nonignorable missing data of [Sun et al. (2018)](https://doi.org/10.5705/ss.202016.0324) |
+| `LSIV_LATE()` | Influence function estimator of the local average treatment effect under its corresponding IV assumptions |
 
-`SIV_LATE()` targets the effect among compliers. Comparisons with the ATT require interpreting the difference in target populations and assumptions.
+`LSIV_LATE()` targets the effect among compliers. Comparisons with the ATT require interpreting the difference in target populations and assumptions.
 
 The [simulation scripts](ReplicationFiles/Simulation) and [Job Corps analysis](ReplicationFiles/Data) are included in `ReplicationFiles/`. The application directory contains `JC.csv` and scripts for fitting the methods, summarizing density ratios, and aggregating results. Run scripts from their respective replication directories. Batch-fitting scripts take a batch number as a command-line argument.
 
 #### One-sided noncompliance simulation
 
-The simulation directory also includes a design with $A=0$ whenever $Z=0$ and $\Pr(Z=1\mid X)=1/2$. The ATT and LATE coincide under this design. The comparison covers continuous and binary outcomes at sample sizes 1,000, 2,000, and 4,000, and includes `SIV()`, the one-sided ATT estimator implemented in the simulation script (result label `SIV_one_sided`), and `SIV_LATE()`.
+The simulation directory also includes a design with $A=0$ whenever $Z=0$ and $\Pr(Z=1\mid X)=1/2$. The ATT and LATE coincide under this design. The comparison covers continuous and binary outcomes at sample sizes 1,000, 2,000, and 4,000, and includes `LSIV()`, the one-sided ATT estimator implemented in the simulation script (result label `LSIV_one_sided`), and `LSIV_LATE()`.
 
 | Script | Role |
 |---|---|
@@ -360,4 +359,4 @@ van der Laan, M. J., Polley, E. C., and Hubbard, A. E. (2007). Super Learner. *S
 
 ## AI Disclosure
 
-Parts of the SIV package and this README were prepared with assistance from Claude (Anthropic) and ChatGPT (OpenAI).
+Parts of the LSIV package and this README were prepared with assistance from Claude (Anthropic) and ChatGPT (OpenAI).

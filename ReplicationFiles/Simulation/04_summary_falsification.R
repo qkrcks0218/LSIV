@@ -1,5 +1,5 @@
-DGP_VALUES <- c("SIV", "mild", "severe")
-DGP_LABELS <- c(SIV = "SIV holds", mild = "Mild violation",
+DGP_VALUES <- c("LSIV", "mild", "severe")
+DGP_LABELS <- c(LSIV = "LSIV holds", mild = "Mild violation",
                 severe = "Severe violation")
 
 raw <- read.csv("Merge_Fal_F.csv")
@@ -12,7 +12,7 @@ if (!"dgp" %in% names(raw) && "scenario" %in% names(raw)) {
 if (!"dgp" %in% names(raw)) {
   stop("Input must contain a `dgp` column.", call. = FALSE)
 }
-raw$dgp <- ifelse(tolower(raw$dgp) == "siv", "SIV", tolower(raw$dgp))
+raw$dgp <- ifelse(tolower(raw$dgp) == "lsiv", "LSIV", tolower(raw$dgp))
 
 N_VALUES <- sort(unique(raw$n))
 DGP_VALUES <- DGP_VALUES[DGP_VALUES %in% raw$dgp]
@@ -74,8 +74,8 @@ summary$dgp <- factor(summary$dgp, levels = DGP_VALUES)
 summary <- summary[order(summary$dgp, summary$n), ]
 summary$dgp <- as.character(summary$dgp)
 
-colors <- c(SIV = "#1B6CA8", mild = "#E69F00", severe = "#C0392B")
-shapes <- c(SIV = 16, mild = 17, severe = 15)
+colors <- c(LSIV = "#1B6CA8", mild = "#E69F00", severe = "#C0392B")
+shapes <- c(LSIV = 16, mild = 17, severe = 15)
 
 png("Falsification.png",height=5,width=10,unit="in",res=500)
 par(mar=c(3.5,3.5,2,0.5))

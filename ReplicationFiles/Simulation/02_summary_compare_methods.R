@@ -24,7 +24,7 @@ raw$covered <- is.finite(raw$estimate) & is.finite(raw$se) &
 
 ## Order the methods the way the comparison is read, with anything unexpected
 ## appended rather than dropped.
-method_order <- c("Ours", "SIV_Liu", "SIV_Sun", "SIV_LATE", "2SLS", "Ign",
+method_order <- c("Ours", "LSIV_Liu", "LSIV_Sun", "LSIV_LATE", "2SLS", "Ign",
                   "linear model")
 raw$method <- factor(raw$method,
                      levels = c(intersect(method_order, unique(raw$method)),
@@ -34,7 +34,7 @@ raw$method <- factor(raw$method,
 ## Summary table
 ## ---------------------------------------------------------------------------
 
-siv_summarise_merged <- function(d, scale = 10) {
+lsiv_summarise_merged <- function(d, scale = 10) {
   keys <- unique(d[, c("type", "n", "method")])
   keys <- keys[order(keys$type, keys$n, keys$method), , drop = FALSE]
   rows <- lapply(seq_len(nrow(keys)), function(i) {
@@ -78,7 +78,7 @@ siv_summarise_merged <- function(d, scale = 10) {
 }
 
 SCALE <- 10
-summary_tab <- siv_summarise_merged(raw, scale = SCALE)
+summary_tab <- lsiv_summarise_merged(raw, scale = SCALE)
 
 cat(sprintf("\nSummary of %s  (%d rows, %d batches)\n",
             basename(in_file), nrow(raw), length(unique(raw$rep)) *
@@ -114,16 +114,16 @@ utils::write.csv(summary_tab, summary_file, row.names = FALSE)
 ## methods appear side by side in `PLOT_METHODS` order -- so a group is read as
 ## "all methods at this N" and the three groups show what happens as N grows.
 ## `linear model` is not plotted.  The statistics block underneath reports the
-## proposed SIV estimator only, one column per sample size, and the filled
-## square in its heading is SIV's box colour.
+## proposed LSIV estimator only, one column per sample size, and the filled
+## square in its heading is LSIV's box colour.
 ## ---------------------------------------------------------------------------
 
 ## Methods to plot, in the order they appear inside a group, and their labels.
-PLOT_METHODS <- c("SIV", "SIV_Liu", "SIV_Sun", "SIV_LATE", "2SLS", "Ign")
-METHOD_LABEL <- c(SIV = "Ours", SIV_Liu = "Liu", SIV_Sun = "Sun",
-                  SIV_LATE = "LATE", "2SLS" = "2SLS", Ign = "Ign")
+PLOT_METHODS <- c("LSIV", "LSIV_Liu", "LSIV_Sun", "LSIV_LATE", "2SLS", "Ign")
+METHOD_LABEL <- c(LSIV = "Ours", LSIV_Liu = "Liu", LSIV_Sun = "Sun",
+                  LSIV_LATE = "LATE", "2SLS" = "2SLS", Ign = "Ign")
 ## The estimator whose summary statistics are tabulated underneath the boxes.
-STAT_METHOD <- "SIV"
+STAT_METHOD <- "LSIV"
 ## Set to FALSE for bare boxplots without the tabulated statistics underneath.
 SHOW_STATS <- TRUE
 
@@ -138,15 +138,15 @@ ns <- sort(unique(raw$n))
 ## in lightness as well as hue).  Every colour is then blended with white by
 ## the share `PASTEL` (0 = original, 1 = white) to give a pastel version of the
 ## same hue.
-SIV_COL <- "grey45"
-OTHER_COL <- c(SIV_Liu = "#0072B2", SIV_Sun = "#E69F00", SIV_LATE = "#009E73",
-               "2SLS" = "#CC79A7", Ign = "#D55E00")
+LSIV_COL <- "grey45"
+OTHER_COL <- c(LSIV_Liu = "#0072B2", LSIV_Sun = "#E69F00",
+               LSIV_LATE = "#009E73", "2SLS" = "#CC79A7", Ign = "#D55E00")
 PASTEL <- 0.25
 to_pastel <- function(col, w = PASTEL) {
   m <- grDevices::col2rgb(col) / 255
   grDevices::rgb(t((1 - w) * m + w))
 }
-COL <- c(SIV = SIV_COL, OTHER_COL)[methods]
+COL <- c(LSIV = LSIV_COL, OTHER_COL)[methods]
 COL <- stats::setNames(to_pastel(COL), names(COL))
 
 ## Geometry: `GAP` is the blank space, in box widths, left between two sample
@@ -218,7 +218,7 @@ draw_stats <- function(tp) {
   graphics::plot.new()
   graphics::plot.window(xlim = XL, ylim = c(0, 1))
 
-  ## Heading: "Summary Statistics of tau-hat (<SIV colour swatch>)".
+  ## Heading: "Summary Statistics of tau-hat (<LSIV colour swatch>)".
   
   
   labs <- c(sprintf("Bias (x%d)", SCALE), sprintf("ESE (x%d)", SCALE),
@@ -244,7 +244,7 @@ draw_figure <- function() {
   for (tp in types) { draw_panel(tp)
     draw_stats(tp) }
   
-  ## Heading row spanning both columns: "Summary Statistics of tau-hat (<SIV
+  ## Heading row spanning both columns: "Summary Statistics of tau-hat (<LSIV
   ## colour swatch>)".  It has its own [0, 1] coordinate window, not `XL`.
   graphics::par(mar = c(0, 0, 0, 0))
   graphics::plot.new()

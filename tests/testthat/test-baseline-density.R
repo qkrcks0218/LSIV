@@ -12,7 +12,7 @@ test_that("np/gss and separate-bandwidth KLIEP/uLSIF are the continuous defaults
   A <- stats::rbinom(n, 1, stats::plogis(-0.8 + 1.4 * Z + 0.2 * Y0))
   Y <- ifelse(A == 0, Y0, Y0 + 1)
 
-  fit <- suppressWarnings(SIV(
+  fit <- suppressWarnings(LSIV(
     Y, A, Z, X, y_type = "continuous",
     Overall.Estimation_num.crossfit = 1L,
     Overall.Estimation_num.fold = 1L,
@@ -62,7 +62,7 @@ test_that("np/gss and separate-bandwidth KLIEP/uLSIF are the continuous defaults
 })
 
 test_that("the default gss formula contains main effects only", {
-  f <- SIV:::siv_gss_default_formula(c("X1", "X2"))
+  f <- LSIV:::lsiv_gss_default_formula(c("X1", "X2"))
   expect_identical(attr(stats::terms(f), "term.labels"), c("Y", "X1", "X2"))
   expect_identical(attr(stats::terms(f), "order"), rep.int(1L, 3L))
 })
@@ -80,7 +80,7 @@ test_that("np_cv uses the likelihood-CV bandwidth without a gss candidate", {
   grid <- seq(-2, 2, length.out = 11L)
   weights <- rep(1, length(grid))
 
-  fit <- siv_baseline_density_np_cv(
+  fit <- lsiv_baseline_density_np_cv(
     Y, A, Z, X, grid, weights, folds = list(seq_len(n))
   )
   expect_identical(fit$bandwidth, "cv.ml")
@@ -103,7 +103,7 @@ test_that("the slow Version1 np/gss and CV KLIEP/uLSIF path remains available", 
   A <- stats::rbinom(n, 1, stats::plogis(-1 + Z + 0.2 * Y0))
   Y <- ifelse(A == 0, Y0, Y0 + 1)
 
-  fit <- suppressWarnings(SIV(
+  fit <- suppressWarnings(LSIV(
     Y, A, Z, X, y_type = "continuous",
     Overall.Estimation_num.crossfit = 1L,
     Overall.Estimation_num.fold = 1L,
@@ -132,23 +132,23 @@ test_that("MSPE weights recover the interior minimum missed by the penalty optim
   H <- matrix(c(0.274649277529102, 0.264281863900480,
                 0.264281863900480, 0.269356147720356), 2L)
   h <- c(0.278153223208423, 0.268002610678459)
-  fit <- SIV:::siv_density_mspe_weights(H, h)
+  fit <- LSIV:::lsiv_density_mspe_weights(H, h)
   expect_equal(unname(fit$weight), c(0.985960021598615, 0.014039978401385),
                tolerance = 1e-10)
   score <- function(w) as.numeric(.5 * t(w) %*% H %*% w - sum(w * h))
   expect_lt(score(fit$weight), score(c(1, 0)) - 1e-6)
-  expect_equal(fit$weight, SIV:::siv_ratio_ensemble_weights(H, h)$weight)
+  expect_equal(fit$weight, LSIV:::lsiv_ratio_ensemble_weights(H, h)$weight)
 })
 
 test_that("MSPE weights include exact endpoints and reject nonfinite scores", {
-  expect_identical(SIV:::siv_density_mspe_weights(diag(2), c(2, 0))$weight,
+  expect_identical(LSIV:::lsiv_density_mspe_weights(diag(2), c(2, 0))$weight,
                    c(1, 0))
-  expect_identical(SIV:::siv_density_mspe_weights(diag(2), c(0, 2))$weight,
+  expect_identical(LSIV:::lsiv_density_mspe_weights(diag(2), c(0, 2))$weight,
                    c(0, 1))
-  flat <- SIV:::siv_density_mspe_weights(matrix(1, 2, 2), c(1, 1))
+  flat <- LSIV:::lsiv_density_mspe_weights(matrix(1, 2, 2), c(1, 1))
   expect_equal(sum(flat$weight), 1)
   expect_true(all(is.finite(flat$weight)))
-  expect_error(SIV:::siv_density_mspe_weights(diag(2), c(NA_real_, 0)),
+  expect_error(LSIV:::lsiv_density_mspe_weights(diag(2), c(NA_real_, 0)),
                "finite scores")
 })
 
@@ -156,22 +156,22 @@ test_that("the np/gss baseline path validates its CV settings", {
   set.seed(7303)
   d <- test_dgp(200, "continuous")
   expect_error(
-    SIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
-        outcome_density = "np_gss_cv", outcome_cv.folds = 1L),
+    LSIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
+         outcome_density = "np_gss_cv", outcome_cv.folds = 1L),
     "density_cv_folds"
   )
   expect_identical(
-    eval(formals(SIV)$outcome_density),
+    eval(formals(LSIV)$outcome_density),
     c("np_gss_cv", "np_normal", "np_cv", "gaussian", "binned")
   )
 
-  g <- siv_grid(d$Y, d$A, "continuous", n_grid = 21L,
-                include_observed = FALSE)
+  g <- lsiv_grid(d$Y, d$A, "continuous", n_grid = 21L,
+                 include_observed = FALSE)
   nu <- test_oracle_nuisance(d$X, g$grid, g$weights, "continuous")
-  alias_fit <- siv_estimate(
+  alias_fit <- lsiv_estimate(
     d$Y, d$A, d$Z, d$X, type = "continuous", nuisance = nu,
     grid = g$grid, weights = g$weights, outcome_density = "np_gss"
   )
   expect_identical(alias_fit$outcome_density, "np_gss_cv")
-  expect_false("lower_density" %in% names(formals(SIV)))
+  expect_false("lower_density" %in% names(formals(LSIV)))
 })

@@ -11,9 +11,9 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// siv_contraction_cpp
-List siv_contraction_cpp(NumericMatrix g0, NumericVector pA1_zm, NumericVector pA1_zM, NumericMatrix fY_zm, NumericMatrix fY_zM, NumericMatrix RY, NumericVector weights, int maxit, double tol);
-RcppExport SEXP _SIV_siv_contraction_cpp(SEXP g0SEXP, SEXP pA1_zmSEXP, SEXP pA1_zMSEXP, SEXP fY_zmSEXP, SEXP fY_zMSEXP, SEXP RYSEXP, SEXP weightsSEXP, SEXP maxitSEXP, SEXP tolSEXP) {
+// lsiv_contraction_cpp
+List lsiv_contraction_cpp(NumericMatrix g0, NumericVector pA1_zm, NumericVector pA1_zM, NumericMatrix fY_zm, NumericMatrix fY_zM, NumericMatrix RY, NumericVector weights, int maxit, double tol);
+RcppExport SEXP _LSIV_lsiv_contraction_cpp(SEXP g0SEXP, SEXP pA1_zmSEXP, SEXP pA1_zMSEXP, SEXP fY_zmSEXP, SEXP fY_zMSEXP, SEXP RYSEXP, SEXP weightsSEXP, SEXP maxitSEXP, SEXP tolSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -26,13 +26,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_contraction_cpp(g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, maxit, tol));
+    rcpp_result_gen = Rcpp::wrap(lsiv_contraction_cpp(g0, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights, maxit, tol));
     return rcpp_result_gen;
 END_RCPP
 }
-// siv_delta_moments_cpp
-NumericMatrix siv_delta_moments_cpp(NumericMatrix delta, NumericVector grid, NumericMatrix fY, NumericVector weights);
-RcppExport SEXP _SIV_siv_delta_moments_cpp(SEXP deltaSEXP, SEXP gridSEXP, SEXP fYSEXP, SEXP weightsSEXP) {
+// lsiv_delta_moments_cpp
+NumericMatrix lsiv_delta_moments_cpp(NumericMatrix delta, NumericVector grid, NumericMatrix fY, NumericVector weights);
+RcppExport SEXP _LSIV_lsiv_delta_moments_cpp(SEXP deltaSEXP, SEXP gridSEXP, SEXP fYSEXP, SEXP weightsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -40,13 +40,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type grid(gridSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type fY(fYSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_delta_moments_cpp(delta, grid, fY, weights));
+    rcpp_result_gen = Rcpp::wrap(lsiv_delta_moments_cpp(delta, grid, fY, weights));
     return rcpp_result_gen;
 END_RCPP
 }
-// siv_gaussian_kernel_ratio
-arma::vec siv_gaussian_kernel_ratio(const arma::mat& x, const arma::mat& centers, double sigma, const arma::vec& kernel_weights, int n_threads);
-RcppExport SEXP _SIV_siv_gaussian_kernel_ratio(SEXP xSEXP, SEXP centersSEXP, SEXP sigmaSEXP, SEXP kernel_weightsSEXP, SEXP n_threadsSEXP) {
+// lsiv_gaussian_kernel_ratio
+arma::vec lsiv_gaussian_kernel_ratio(const arma::mat& x, const arma::mat& centers, double sigma, const arma::vec& kernel_weights, int n_threads);
+RcppExport SEXP _LSIV_lsiv_gaussian_kernel_ratio(SEXP xSEXP, SEXP centersSEXP, SEXP sigmaSEXP, SEXP kernel_weightsSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -55,13 +55,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type kernel_weights(kernel_weightsSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_gaussian_kernel_ratio(x, centers, sigma, kernel_weights, n_threads));
+    rcpp_result_gen = Rcpp::wrap(lsiv_gaussian_kernel_ratio(x, centers, sigma, kernel_weights, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
-// siv_gaussian_kernel_matrix_bw
-arma::mat siv_gaussian_kernel_matrix_bw(const arma::mat& x, const arma::mat& centers, const arma::vec& sigma_vec, int n_threads);
-RcppExport SEXP _SIV_siv_gaussian_kernel_matrix_bw(SEXP xSEXP, SEXP centersSEXP, SEXP sigma_vecSEXP, SEXP n_threadsSEXP) {
+// lsiv_gaussian_kernel_matrix_bw
+arma::mat lsiv_gaussian_kernel_matrix_bw(const arma::mat& x, const arma::mat& centers, const arma::vec& sigma_vec, int n_threads);
+RcppExport SEXP _LSIV_lsiv_gaussian_kernel_matrix_bw(SEXP xSEXP, SEXP centersSEXP, SEXP sigma_vecSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -69,13 +69,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::mat& >::type centers(centersSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type sigma_vec(sigma_vecSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_gaussian_kernel_matrix_bw(x, centers, sigma_vec, n_threads));
+    rcpp_result_gen = Rcpp::wrap(lsiv_gaussian_kernel_matrix_bw(x, centers, sigma_vec, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
-// siv_gaussian_kernel_ratio_bw
-arma::vec siv_gaussian_kernel_ratio_bw(const arma::mat& x, const arma::mat& centers, const arma::vec& sigma_vec, const arma::vec& kernel_weights, int n_threads);
-RcppExport SEXP _SIV_siv_gaussian_kernel_ratio_bw(SEXP xSEXP, SEXP centersSEXP, SEXP sigma_vecSEXP, SEXP kernel_weightsSEXP, SEXP n_threadsSEXP) {
+// lsiv_gaussian_kernel_ratio_bw
+arma::vec lsiv_gaussian_kernel_ratio_bw(const arma::mat& x, const arma::mat& centers, const arma::vec& sigma_vec, const arma::vec& kernel_weights, int n_threads);
+RcppExport SEXP _LSIV_lsiv_gaussian_kernel_ratio_bw(SEXP xSEXP, SEXP centersSEXP, SEXP sigma_vecSEXP, SEXP kernel_weightsSEXP, SEXP n_threadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -84,25 +84,25 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type sigma_vec(sigma_vecSEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type kernel_weights(kernel_weightsSEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_gaussian_kernel_ratio_bw(x, centers, sigma_vec, kernel_weights, n_threads));
+    rcpp_result_gen = Rcpp::wrap(lsiv_gaussian_kernel_ratio_bw(x, centers, sigma_vec, kernel_weights, n_threads));
     return rcpp_result_gen;
 END_RCPP
 }
-// siv_kliep_optimize_cpp
-arma::vec siv_kliep_optimize_cpp(const arma::mat& phi_x1, const arma::mat& phi_x2);
-RcppExport SEXP _SIV_siv_kliep_optimize_cpp(SEXP phi_x1SEXP, SEXP phi_x2SEXP) {
+// lsiv_kliep_optimize_cpp
+arma::vec lsiv_kliep_optimize_cpp(const arma::mat& phi_x1, const arma::mat& phi_x2);
+RcppExport SEXP _LSIV_lsiv_kliep_optimize_cpp(SEXP phi_x1SEXP, SEXP phi_x2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::mat& >::type phi_x1(phi_x1SEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type phi_x2(phi_x2SEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_kliep_optimize_cpp(phi_x1, phi_x2));
+    rcpp_result_gen = Rcpp::wrap(lsiv_kliep_optimize_cpp(phi_x1, phi_x2));
     return rcpp_result_gen;
 END_RCPP
 }
-// siv_kliep_bw_cpp
-Rcpp::List siv_kliep_bw_cpp(const arma::mat& x1, const arma::mat& x2, const arma::mat& centers, arma::vec sigma_init, int n_y_cols, const arma::ivec& cv_split, int fold, int n_cd_iter);
-RcppExport SEXP _SIV_siv_kliep_bw_cpp(SEXP x1SEXP, SEXP x2SEXP, SEXP centersSEXP, SEXP sigma_initSEXP, SEXP n_y_colsSEXP, SEXP cv_splitSEXP, SEXP foldSEXP, SEXP n_cd_iterSEXP) {
+// lsiv_kliep_bw_cpp
+Rcpp::List lsiv_kliep_bw_cpp(const arma::mat& x1, const arma::mat& x2, const arma::mat& centers, arma::vec sigma_init, int n_y_cols, const arma::ivec& cv_split, int fold, int n_cd_iter);
+RcppExport SEXP _LSIV_lsiv_kliep_bw_cpp(SEXP x1SEXP, SEXP x2SEXP, SEXP centersSEXP, SEXP sigma_initSEXP, SEXP n_y_colsSEXP, SEXP cv_splitSEXP, SEXP foldSEXP, SEXP n_cd_iterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -114,23 +114,23 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::ivec& >::type cv_split(cv_splitSEXP);
     Rcpp::traits::input_parameter< int >::type fold(foldSEXP);
     Rcpp::traits::input_parameter< int >::type n_cd_iter(n_cd_iterSEXP);
-    rcpp_result_gen = Rcpp::wrap(siv_kliep_bw_cpp(x1, x2, centers, sigma_init, n_y_cols, cv_split, fold, n_cd_iter));
+    rcpp_result_gen = Rcpp::wrap(lsiv_kliep_bw_cpp(x1, x2, centers, sigma_init, n_y_cols, cv_split, fold, n_cd_iter));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_SIV_siv_contraction_cpp", (DL_FUNC) &_SIV_siv_contraction_cpp, 9},
-    {"_SIV_siv_delta_moments_cpp", (DL_FUNC) &_SIV_siv_delta_moments_cpp, 4},
-    {"_SIV_siv_gaussian_kernel_ratio", (DL_FUNC) &_SIV_siv_gaussian_kernel_ratio, 5},
-    {"_SIV_siv_gaussian_kernel_matrix_bw", (DL_FUNC) &_SIV_siv_gaussian_kernel_matrix_bw, 4},
-    {"_SIV_siv_gaussian_kernel_ratio_bw", (DL_FUNC) &_SIV_siv_gaussian_kernel_ratio_bw, 5},
-    {"_SIV_siv_kliep_optimize_cpp", (DL_FUNC) &_SIV_siv_kliep_optimize_cpp, 2},
-    {"_SIV_siv_kliep_bw_cpp", (DL_FUNC) &_SIV_siv_kliep_bw_cpp, 8},
+    {"_LSIV_lsiv_contraction_cpp", (DL_FUNC) &_LSIV_lsiv_contraction_cpp, 9},
+    {"_LSIV_lsiv_delta_moments_cpp", (DL_FUNC) &_LSIV_lsiv_delta_moments_cpp, 4},
+    {"_LSIV_lsiv_gaussian_kernel_ratio", (DL_FUNC) &_LSIV_lsiv_gaussian_kernel_ratio, 5},
+    {"_LSIV_lsiv_gaussian_kernel_matrix_bw", (DL_FUNC) &_LSIV_lsiv_gaussian_kernel_matrix_bw, 4},
+    {"_LSIV_lsiv_gaussian_kernel_ratio_bw", (DL_FUNC) &_LSIV_lsiv_gaussian_kernel_ratio_bw, 5},
+    {"_LSIV_lsiv_kliep_optimize_cpp", (DL_FUNC) &_LSIV_lsiv_kliep_optimize_cpp, 2},
+    {"_LSIV_lsiv_kliep_bw_cpp", (DL_FUNC) &_LSIV_lsiv_kliep_bw_cpp, 8},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_SIV(DllInfo *dll) {
+RcppExport void R_init_LSIV(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

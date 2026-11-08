@@ -8,7 +8,7 @@ if(length(args) == 1){
   stop()
 }
 
-library(SIV)
+library(LSIV)
 source("00_common.R")
 
 NUM_BOOT <- 1000L
@@ -20,9 +20,9 @@ X_BINS <- 5L
 N_GRID <- 101L
 BW_QUANTILE <- c(0.5,0.75,0.9,0.95)
 
-DGP_VALUES <- c("SIV", "mild", "severe")
+DGP_VALUES <- c("LSIV", "mild", "severe")
 DGP_LABELS <- c(
-  SIV = "SIV holds",
+  LSIV = "LSIV holds",
   mild = "Mild violation",
   severe = "Severe violation"
 )
@@ -48,7 +48,7 @@ message(sprintf(
   BATCH, nrow(HYPERPARAMETER), N, DGP, TYPE, SEED
 ))
 
-## The test is run through the public API, `SIV(falsification = TRUE)`, so the
+## The test is run through the public API, `LSIV(falsification = TRUE)`, so the
 ## simulation exercises exactly the code path a user gets: the Super Learner
 ## nuisance estimates, the ATT fixed point and the falsification test all come
 ## out of one call, on the cross-fitted nuisances the test requires.
@@ -64,14 +64,14 @@ one_rep <- function(seed, n, dgp, type) {
   ans <- withCallingHandlers(
     tryCatch({
       set.seed(data_seed)
-      d <- siv_dgp(n, type = type, violation = violation)
+      d <- lsiv_dgp(n, type = type, violation = violation)
       
       ## Separating the data seed from the estimation seed keeps the fit
       ## invariant to the number of parallel workers.  The second seed governs
       ## the cross-fitting folds, the Super Learner cross-validation and the
-      ## multiplier bootstrap alike, since SIV() draws them all in this call.
+      ## multiplier bootstrap alike, since LSIV() draws them all in this call.
       set.seed(bootstrap_seed)
-      fit <- SIV::SIV(
+      fit <- LSIV::LSIV(
         d$Y, d$A, d$Z, d$X,
         y_type = type,
         Overall.Estimation_SL.list = SL_LIST,
@@ -89,7 +89,7 @@ one_rep <- function(seed, n, dgp, type) {
         falsification_categorical = NULL,
         level = 0.95
       )
-      ## SIV() retains the nuisance fit from its last cross-fitting repetition.
+      ## LSIV() retains the nuisance fit from its last cross-fitting repetition.
       ## Label these auxiliary diagnostics accordingly. The reported test
       ## itself uses the median p-value across all repetitions.
       nuisance <- fit$nuisance
@@ -109,7 +109,7 @@ one_rep <- function(seed, n, dgp, type) {
           mean(nuisance$pA1_z1 - nuisance$pA1_z0)
       )
     }, error = function(e) {
-      structure(conditionMessage(e), class = "siv_falsification_error")
+      structure(conditionMessage(e), class = "lsiv_falsification_error")
     }),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))
@@ -130,7 +130,7 @@ one_rep <- function(seed, n, dgp, type) {
     num_fold = NUM_FOLDS,
     stringsAsFactors = FALSE
   )
-  if (inherits(ans, "siv_falsification_error")) {
+  if (inherits(ans, "lsiv_falsification_error")) {
     return(cbind(
       prefix,
       data.frame(
