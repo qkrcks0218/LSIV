@@ -1,6 +1,6 @@
 ## `in_file` / `out_dir` may already be set by a driver script; fall back to the
 ## merged file in the working directory so this script also runs on its own.
-if (!exists("in_file")) in_file <- "Merge_Sim_1snp_F.csv"
+if (!exists("in_file")) in_file <- "Merge_1snp_F.csv"
 if (!exists("out_dir")) out_dir <- "."
 
 raw <- read.csv(in_file)
