@@ -1,13 +1,10 @@
 ## KLIEP/uLSIF density-ratio ensemble for
 ##   R_Y(y, x) = f(y | A = 0, Z = 1, x) / f(y | A = 0, Z = 0, x).
 ##
-## This follows Simulation_Version1/1.Sim_Conti_SepIV.R, lines 1040 through 1464.
-## KLIEP and uLSIF use the same high-distance-quantile bandwidth library as the
-## replication code, are refitted within each outer training fold for inner
-## validation, and are ensembled after conversion to candidate Z = 1
-## conditional densities.  The original code normalises at the density level;
-## doing that is essential because KLIEP/uLSIF estimate a joint (Y, X) ratio,
-## whose X-only factor must disappear from each conditional density row.
+## KLIEP and uLSIF use distance-quantile bandwidth candidates, are refitted
+## within each outer training fold for inner validation, and are ensembled
+## after conversion to candidate Z = 1 conditional densities. Row normalization
+## removes the X-only factor from the estimated joint (Y, X) density ratio.
 
 ## Internal: squared Euclidean distances without relying on an unexported
 ## densityratio helper.
@@ -410,9 +407,8 @@ lsiv_kliep_ulsif_median_separate_fit <- function(
   )
 }
 
-## Internal: refit one Version1 candidate with the bandwidth selected on the
-## complete outer training fold.  This is the role of lines 1096 through 1138
-## and 1196 through 1236 in the original script.
+## Internal: refit a candidate using the bandwidth selected on the complete
+## outer training fold.
 lsiv_kliep_ulsif_refit <- function(method, x1, x0, sigma, transform,
                                    kernel_num, fold) {
   x1 <- as.data.frame(x1)
@@ -577,9 +573,8 @@ lsiv_single_density_ratio_grid <- function(
   )
 }
 
-## Internal: stratified inner folds on the entire outer training fold.  Thus
-## both density-ratio arms occur in every training/validation split, as in the
-## cell-balanced Version1 splitting scheme.
+## Internal: stratified inner folds on the entire outer training fold, keeping
+## both density-ratio arms in each training/validation split.
 lsiv_ratio_inner_folds <- function(index, A, Z, nfold) {
   nfold <- max(2L, as.integer(nfold))
   local <- lsiv_make_folds(length(index), A[index], Z[index], nfold)
@@ -772,7 +767,7 @@ lsiv_kliep_ulsif_median_ratio_grid <- function(
   )
 }
 
-## Internal: the full Version1 KLIEP/uLSIF density-ratio ensemble on the LSIV
+## Internal: the KLIEP/uLSIF density-ratio ensemble on the LSIV
 ## outcome grid.  Returns NULL when a fold cannot support both candidates, so
 ## LSIV() can use its documented logistic fallback.
 lsiv_kliep_ulsif_ratio_grid <- function(

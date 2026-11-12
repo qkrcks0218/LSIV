@@ -102,15 +102,8 @@ test_that("lsiv_fixed_point validates its inputs", {
 })
 
 ## ---------------------------------------------------------------------------
-## The influence function must follow the manuscript's replication code
-## (Simulation_F_Both/1.Sim_Conti_SepIV.R, "Calibration: beta" onwards).
-##
-## In that code  gamma.z0.CF = Pr(A=1|z0,X)/Pr(A=0|z0,X)  is the RAW odds and
-##               beta.z0.CF  = gamma.z0.CF / denom.z0.
-## lsiv_fixed_point() returns gamma already divided by denom once (eq. 18), so
-## lsiv_eif() must NOT divide by denom a second time.  Dividing twice left the
-## weight alpha*beta too small by a factor of denom (range 1.04-2.31) and broke
-## the identity checked below; it changed every reported standard error.
+## The EIF weights use beta = treatment odds / E{alpha | A=0,z,X}.
+## The reconstructed treatment-free densities agree across instrument arms.
 ## ---------------------------------------------------------------------------
 
 test_that("lsiv_eif() uses beta = odds / E{alpha | A=0,z,X}", {
@@ -137,9 +130,6 @@ test_that("lsiv_eif() uses beta = odds / E{alpha | A=0,z,X}", {
 })
 
 test_that("the reconstructed f(Y0 | X) agrees across the two arms of Z", {
-  ## This is the replication code's own sanity check
-  ## `mean((fy_from_z0.CF - fy_from_z1.CF)^2)  # should be small`.
-  ## It is ~1e-25 with the correct beta and ~9e-04 with beta/denom.
   set.seed(502)
   for (s in 1:2) {
     d <- test_dgp(500, "continuous")

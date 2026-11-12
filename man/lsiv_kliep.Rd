@@ -43,10 +43,8 @@ Importance Estimation (KLIEP), with separate Gaussian-kernel bandwidths for
 the outcome columns and the covariate columns.
 }
 \details{
-This is the engine of the \pkg{UDID} package (`KLIEP_bw()`), ported so that
-[LSIV()] can estimate the density ratio \eqn{R_Y} of eq. (15) *directly*, the
-way the manuscript's replication code does, instead of dividing two
-separately estimated conditional densities.
+\NTC{Estimates the density ratio \eqn{R_Y} in eq. (15) directly using
+Gaussian kernels.}
 }
 \section{Hyper-parameter tuning}{
 

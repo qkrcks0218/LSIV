@@ -1,34 +1,9 @@
-// lsiv_fastpath.cpp
-//
-// Compiled fast paths for the two hot spots of the proposed estimator, both of
-// which are dense n x M matrix recursions over an outcome grid.  Profiling
-// LSIV(type = "continuous", crossfit = 2) at n = 1000 attributed 51% of the
-// total run time to lsiv_fixed_point() (24% of it inside lsiv_Psi()) and 21% to
-// lsiv_eif(); nothing else exceeded 4%.
-//
-//   lsiv_contraction_cpp()   the normalised contraction of Theorem 3.2,
-//                            eq. (19).  The R version allocates roughly eight
-//                            n x M temporaries per iteration (`g * RY`, the
-//                            three products in `num`, `num * S`, `pA1_zM * RY`,
-//                            the quotient, `abs(gn - g) * Wm`); at n = 1000 and
-//                            M = 578 that is ~37 MB of allocation per sweep,
-//                            repeated for every iteration.  The loop below
-//                            keeps two n x M buffers for the whole solve and
-//                            allocates nothing inside the iteration.
-//
-//   lsiv_delta_moments_cpp() the four delta-weighted grid integrals that
-//                            lsiv_eif() needs for each level of Z.  The R
-//                            version calls int_z() six times, each a
-//                            rowSums(V * f * W) over the full n x M grid; this
-//                            computes all four in a single sweep, reusing
-//                            delta[i,m]*fY[i,m]*w[m].
-//
-// SEMANTICS ARE IDENTICAL TO THE R REFERENCE IMPLEMENTATIONS, which are
-// retained in R/lsiv_core.R and are used whenever the compiled code is not
-// available (e.g. when the package sources are sourced directly rather than
-// installed).  Numerical agreement is verified in tests/testthat/test-rcpp.R;
-// the two differ only by floating-point summation order.
-//
+// Compiled outcome-grid calculations.
+// lsiv_contraction_cpp() implements the normalized contraction of Theorem 3.2.
+// lsiv_delta_moments_cpp() evaluates the delta-weighted integrals for the EIF.
+// R reference implementations are available in R/lsiv_core.R, with numerical
+// agreement checked in tests/testthat/test-rcpp.R.
+
 // [[Rcpp::depends(RcppArmadillo)]]
 
 #include <RcppArmadillo.h>

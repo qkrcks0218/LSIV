@@ -5,3 +5,5 @@
 /src/*.dylib
 /src/symbols.rds
 /ReplicationFiles/Data/Ratio/
+/tests/
+.DS_Store

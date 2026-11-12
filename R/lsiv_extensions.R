@@ -240,7 +240,7 @@ lsiv_qtt_endpoint_median <- function(x) {
 
 ## Internal: QTT estimates and Berger-Boos confidence intervals.  The nominal
 ## error probability is alpha = 1 - level; its default nuisance allocation is
-## c1 = 0.02 * alpha.  num_bootstrap is retained only for API compatibility.
+## c1 = 0.02 * alpha. Treated-quantile intervals use binomial ranks.
 lsiv_qtt <- function(Y, A, Z, type, grid, weights, fp, nuisance,
                      quantiles = c(0.25, 0.5, 0.75), level = 0.95,
                      c1 = 0.02 * (1 - level), num_bootstrap = 1000L,

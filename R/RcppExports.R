@@ -46,9 +46,6 @@ lsiv_delta_moments_cpp <- function(delta, grid, fY, weights) {
 #' Computes  r(x_i) = sum_c w_c * exp(-||x_i - center_c||^2 / (2*sigma^2))
 #' for every row x_i of \code{x}.
 #'
-#' Drop-in replacement for:
-#'   as.vector(densratio:::compute_kernel_Gaussian(x, centers, sigma) %*% kernel_weights)
-#'
 #' @param x              (N_eval x p)    evaluation points
 #' @param centers        (N_centers x p) kernel centres from KLIEP fit
 #' @param sigma          scalar          bandwidth
@@ -103,7 +100,6 @@ lsiv_kliep_optimize_cpp <- function(phi_x1, phi_x2) {
 #' Full KLIEP with per-dimension bandwidth selection (all in C++)
 #'
 #' Runs coordinate-descent sigma search + KLIEP weight optimisation.
-#' Drop-in replacement for KLIEP_bw() in R but much faster.
 #'
 #' @param x1         (n1 x p) numerator sample
 #' @param x2         (n2 x p) denominator sample

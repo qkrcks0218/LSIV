@@ -1,7 +1,6 @@
 ## ---------------------------------------------------------------------------
-## MySL(), ported from the UDID package, and the learner abstraction that lets
-## LSIV() and LSIV_LATE() use it interchangeably with the default GLM regression
-## learner.  LSIV()'s continuous baseline density is handled separately.
+## MySL(), nuisance learner selection, and cross-fitting folds.
+## Continuous baseline densities are tested separately.
 ##
 ## Every machine-learning package is a *suggested* dependency, so all tests
 ## that actually fit an ensemble are skipped when SuperLearner is absent.
@@ -17,7 +16,7 @@ test_that("lsiv_bound_prob() maps probabilities into [tol, 1 - tol]", {
   expect_equal(unname(b[8:10]), rep(0.5, 3))
 })
 
-test_that("MySL tuning matches the Version1 replication", {
+test_that("MySL supplies the specified learner tuning grids", {
   small <- LSIV:::lsiv_mysl_tuning(100)
   large <- LSIV:::lsiv_mysl_tuning(9240)
   expect_equal(small$MLPL, c(1, 2))
@@ -67,7 +66,7 @@ test_that("lsiv_make_folds() partitions the sample and stratifies on (A, Z)", {
   for (k in f) expect_equal(length(unique(interaction(A[k], Z[k]))), 4L)
 })
 
-test_that("two-fold splitting exactly matches Data_Version1", {
+test_that("two-fold splitting uses the specified cell-balanced allocation", {
   set.seed(305)
   A <- rep(c(0, 0, 1, 1), c(11, 12, 13, 14))
   Z <- rep(c(0, 1, 0, 1), c(11, 12, 13, 14))

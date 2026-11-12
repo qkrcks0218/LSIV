@@ -5,10 +5,9 @@
 ##   learner = "glm"  the LSIV_LATE() default. Parametric working models specified
 ##                    by the user's formulas (`instrument_formula`,
 ##                    `treatment_formula`, `outcome_formula`), fitted with
-##                    stats::glm / stats::lm.  This is the behaviour the package
-##                    has always had and is unchanged.
-##   learner = "SL"   the Super Learner ensemble of MySL(), ported from the UDID
-##                    package.  Formulas are not used, because MySL() takes
+##                    stats::glm / stats::lm.
+##   learner = "SL"   the Super Learner ensemble of MySL(). Formulas are not
+##                    used, because MySL() takes
 ##                    column indices rather than a formula: the covariate set is
 ##                    the columns of `X`, plus `Z` for the models that condition
 ##                    on the instrument.
@@ -17,15 +16,14 @@
 ## Super Learner, while `LSIV_LATE()` retains the learner switch.
 ## ----------------------------------------------------------------------------
 
-## Internal: cross-fitting folds shared by LSIV() and LSIV_LATE().  Two-fold
-## splitting reproduces Data_Version1 exactly; larger fold counts remain
-## stratified on (A, Z) so that every fold contains all four cells.
+## Internal: cross-fitting folds shared by LSIV() and LSIV_LATE(), stratified
+## on (A, Z).
 lsiv_make_folds <- function(n, A, Z, crossfit) {
   crossfit <- max(1L, as.integer(crossfit))
   if (crossfit == 1L) return(list(seq_len(n)))
   if (crossfit == 2L) {
-    ## Match the two-fold split in Data_Version1 exactly.  The four cells are
-    ## sampled in the order (A,Z) = (0,0), (0,1), (1,0), (1,1).  The first
+    ## The four cells are sampled in the order (A,Z) = (0,0), (0,1), (1,0),
+    ## (1,1). The first
     ## fold receives floor(n_cell / 2) observations when Z = 0 and
     ## ceiling(n_cell / 2) observations when Z = 1; the complements form the
     ## second fold.

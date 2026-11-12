@@ -1,43 +1,13 @@
 ## ----------------------------------------------------------------------------
-## Nonparametric density-ratio estimation for R_Y (eq. 15), ported from the
-## UDID package.
-##
-## WHY THIS EXISTS
-## ---------------
-## The fixed point of Theorem 3.1 needs
-##     R_Y(y, x) = f(y | A=0, Z=1, x) / f(y | A=0, Z=0, x)          (eq. 15)
-## and Section 5.1 of the manuscript recommends estimating that RATIO directly
-## rather than dividing two separately estimated conditional densities.  The
-## manuscript's own replication code does exactly that: for a continuous
-## outcome `Simulation_Version1/1.Sim_Conti_SepIV.R` fits `densityratio::kliep()`
-## (and uLSIF) with a cross-validated Gaussian-kernel bandwidth, cross-fitted,
-## and ensembles the candidates.
-##
-## The compiled KLIEP engine comes from `UDID_Package/src/udid_kliep.cpp` and
-## remains available through `lsiv_kliep()`. Public `LSIV()` ratio methods use
-## the KLIEP/uLSIF implementation in `densityratio_ensemble.R`.
-##
-## RELATION TO THE UDID CODE
-## -------------------------
-##   UDID                              LSIV
-##   ------------------------------    ------------------------------------
-##   KLIEP_bw()                        lsiv_kliep()
-##   .median_heuristic_bw()            lsiv_kliep_median_bw()
-##   compute_density_ratio_Kernel()    lsiv_kliep_predict()
-##   kliep_bw_cpp()                    lsiv_kliep_bw_cpp()      (src/lsiv_kliep.cpp)
-##   gaussian_kernel_*()               lsiv_gaussian_kernel_*()
-##
-## Two deliberate changes:
-##   1. the CV fold labels are drawn in R, not by `arma::randperm()`, so that
-##      the bandwidth search obeys `set.seed()`;
-##   2. the median-heuristic path uses the compiled `lsiv_kliep_optimize_cpp()`
-##      instead of `densratio:::KLIEP_optimize_alpha`; this compiled alternative
-##      does not itself depend on `densityratio`.
+## Nonparametric density-ratio estimation for R_Y (eq. 15).
+## The compiled KLIEP engine supports per-dimension bandwidth selection and
+## median-heuristic bandwidths. Cross-validation fold labels are drawn in R
+## so that the bandwidth search is reproducible under set.seed().
 ## ----------------------------------------------------------------------------
 
 ## Internal: per-dimension median heuristic (Garreau et al., 2017).
 ## sigma_Y from the pairwise distances among the Y columns, sigma_X from the X
-## columns.  This is UDID's `.median_heuristic_bw()`.
+## columns.
 lsiv_kliep_median_bw <- function(x1, n_y_cols) {
   p <- ncol(x1)
   idx_Y <- seq_len(n_y_cols)
@@ -59,10 +29,8 @@ lsiv_kliep_median_bw <- function(x1, n_y_cols) {
 #' Importance Estimation (KLIEP), with separate Gaussian-kernel bandwidths for
 #' the outcome columns and the covariate columns.
 #'
-#' This is the engine of the \pkg{UDID} package (`KLIEP_bw()`), ported so that
-#' [LSIV()] can estimate the density ratio \eqn{R_Y} of eq. (15) *directly*, the
-#' way the manuscript's replication code does, instead of dividing two
-#' separately estimated conditional densities.
+#' \NTC{Estimates the density ratio \eqn{R_Y} in eq. (15) directly using
+#' Gaussian kernels.}
 #'
 #' @section Hyper-parameter tuning:
 #' `sigma = "auto"` runs the compiled coordinate-descent search: it alternates
@@ -190,7 +158,6 @@ lsiv_kliep_predict <- function(x, object) {
 ## Denominator sample: (Y, X) among  A == 0, Z == 0
 ## so the fitted ratio evaluated at (y, x_i) is exactly
 ##     R_Y(y, x_i) = f(y | A=0, Z=1, x_i) / f(y | A=0, Z=0, x_i).
-## This mirrors `Ry_x.kliep.estimator` in 1.Sim_Conti_SepIV.R.
 ##
 ## Returns an n x M matrix, or NULL if the ratio could not be fitted on some
 ## fold (the caller then falls back to the plug-in ratio).
@@ -232,7 +199,7 @@ lsiv_kliep_ratio_grid <- function(Y, A, Z, X, grid, folds, sigma = "median",
     RY[te, ] <- matrix(r, nte, M)
   }
   if (anyNA(RY) || !all(is.finite(RY))) return(NULL)
-  ## the `dr.LB` guard of the replication code
+  ## Bound the fitted density ratio.
   if (dr_floor > 0) RY <- pmin(pmax(RY, dr_floor), 1 / dr_floor)
   RY
 }

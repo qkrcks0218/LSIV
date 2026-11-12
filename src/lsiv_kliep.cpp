@@ -1,32 +1,7 @@
-// lsiv_kliep.cpp
-//
-// KLIEP density-ratio engine, PORTED FROM UDID_Package/src/udid_kliep.cpp.
-//
-// The manuscript's own replication code estimates the density ratio of
-// eq. (15),
-//     R_Y(y, x) = f(y | A=0, Z=1, x) / f(y | A=0, Z=0, x),
-// DIRECTLY and nonparametrically -- `Simulation_F_Both/1.Sim_Conti_SepIV.R`
-// uses `densityratio::kliep()` with a cross-validated Gaussian-kernel
-// bandwidth, cross-fitted, rather than dividing two separately estimated
-// conditional densities.  That is the strategy Section 5.1 of the manuscript
-// recommends.  This file provides the same estimator inside LSIV, reusing the
-// compiled engine already written for UDID rather than adding a dependency on
-// `densratio` / `densityratio`.
-//
-// Ported verbatim except for:
-//   * the UDID-specific EIF grid helpers (rowsums_grid_cpp,
-//     sens_rowsums_mroot_cpp, mboot_sd_cpp) are NOT ported -- they belong to
-//     the UDiD influence function, not to this package;
-//   * every exported symbol is prefixed `lsiv_` for namespace hygiene, so that
-//     both packages can be loaded at once;
-//   * `kliep_optimize()` is exposed to R (`lsiv_kliep_optimize_cpp`) so that
-//     the median-heuristic path does not need
-//     `densratio:::KLIEP_optimize_alpha`.
-//
-// The bandwidth search in lsiv_kliep_bw_cpp() IS the hyper-parameter tuning:
-// coordinate descent over (sigma_Y, sigma_X) maximising the K-fold
-// cross-validated KLIEP log-likelihood.
-//
+// KLIEP density-ratio estimation with Gaussian kernels.
+// Bandwidth selection uses coordinate descent over outcome and covariate
+// bandwidths to maximize the K-fold cross-validated KLIEP log-likelihood.
+
 // [[Rcpp::depends(RcppArmadillo)]]
 
 #include <RcppArmadillo.h>
@@ -42,9 +17,6 @@ using namespace arma;
 //'
 //' Computes  r(x_i) = sum_c w_c * exp(-||x_i - center_c||^2 / (2*sigma^2))
 //' for every row x_i of \code{x}.
-//'
-//' Drop-in replacement for:
-//'   as.vector(densratio:::compute_kernel_Gaussian(x, centers, sigma) %*% kernel_weights)
 //'
 //' @param x              (N_eval x p)    evaluation points
 //' @param centers        (N_centers x p) kernel centres from KLIEP fit
@@ -388,7 +360,6 @@ arma::vec lsiv_kliep_optimize_cpp(const arma::mat& phi_x1,
 //' Full KLIEP with per-dimension bandwidth selection (all in C++)
 //'
 //' Runs coordinate-descent sigma search + KLIEP weight optimisation.
-//' Drop-in replacement for KLIEP_bw() in R but much faster.
 //'
 //' @param x1         (n1 x p) numerator sample
 //' @param x2         (n2 x p) denominator sample

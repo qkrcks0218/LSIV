@@ -1,33 +1,11 @@
 ## ----------------------------------------------------------------------------
-## MySL(): the Super Learner wrapper of the UDID package, ported to LSIV.
-##
-## This file is a PORT of `UDID_Package/R/MySL.R` (Park & Tchetgen Tchetgen,
-## "A Universal Nonparametric Framework for Difference-in-Differences
-## Analyses").  The learner definitions, the tuning grids, the `sl_env`
-## construction and the call to `SuperLearner::SuperLearner()` are reproduced
-## verbatim so that the two packages fit *identical* ensembles.  Only the
-## package plumbing differs:
-##
-##   1. `SuperLearner:::predict.SL.*` (triple colon) is replaced by
-##      `lsiv_sl_ns()`, a thin `getFromNamespace()` helper.  The triple-colon
-##      form is flagged by `R CMD check`; the helper is not, and resolves to
-##      exactly the same functions.
-##   2. Every optional base-learner package is checked at run time. `MySL()`
-##      drops unavailable learner groups with a warning and errors only if
-##      nothing is left. UDID lists them as hard `Imports`.
-##   3. `PS.Adjust()` is NOT ported.  It is unused in UDID (nothing calls it)
-##      and it does not run: its body references the undefined symbols `times`
-##      and `crossValFUN_out` and calls `SuperLearner.control()` unqualified.
-##      Porting dead, non-running code into a checked package would only
-##      generate `R CMD check` notes.
-##
-## Probability bounding is done by the callers through `lsiv_bound_prob()`,
-## exactly as in UDID (`bound_prob()` in `UDID_nonparametric.R`); `PS.thr` is
-## retained in the signature for interface compatibility.
+## MySL(): Super Learner ensembles for nuisance function estimation.
+## Learner groups share tuning grids and a local environment containing their
+## fit and prediction functions. Callers bound fitted probabilities through
+## lsiv_bound_prob().
 ## ----------------------------------------------------------------------------
 
-## Internal: resolve an unexported SuperLearner object by name.  Equivalent to
-## `SuperLearner:::<name>` but acceptable to `R CMD check`.
+## Internal: resolve an unexported SuperLearner object by name.
 lsiv_sl_ns <- function(name) utils::getFromNamespace(name, "SuperLearner")
 
 ## Internal: packages required by each of the nine learner groups of `MySL()`.
@@ -76,10 +54,7 @@ lsiv_sl_available <- function(SL.list) {
 #' Bound estimated probabilities away from 0 and 1
 #'
 #' Applied to every estimated probability used in a denominator (the instrument
-#' propensity score \eqn{\Pr(Z = 1 \mid X)} in particular).  This is the
-#' `bound_prob()` guard of the UDID package, exposed here so that the
-#' bound is a documented, user-controllable argument rather than a hard-coded
-#' constant.
+#' propensity score \eqn{\Pr(Z = 1 \mid X)} in particular).
 #'
 #' @param p Numeric vector of estimated probabilities.
 #' @param tol Lower bound; `p` is mapped into `[tol, 1 - tol]`.
@@ -94,7 +69,7 @@ lsiv_bound_prob <- function(p, tol = 1e-3) {
   pmin(pmax(p, tol), 1 - tol)
 }
 
-## Internal: Super Learner tuning used by the Version1 replication code.
+## Internal: Super Learner tuning parameters.
 lsiv_mysl_tuning <- function(N) {
   SL.hpara <- list()
   SL.hpara$MLPL <- c(1, 2)
@@ -104,8 +79,7 @@ lsiv_mysl_tuning <- function(N) {
   SL.hpara
 }
 
-## Internal: complete learner grids used by Data_Version1.  Keeping them in a
-## small data-only helper makes parity testable without fitting every learner.
+## Internal: candidate tuning grids for each learner group.
 lsiv_mysl_library_tuning <- function(N) {
   h <- lsiv_mysl_tuning(N)
   list(
@@ -121,7 +95,7 @@ lsiv_mysl_library_tuning <- function(N) {
   )
 }
 
-## Internal: caret preprocessing used by the Version1 GBM and MLP wrappers.
+## Internal: caret preprocessing for the GBM and MLP wrappers.
 lsiv_mysl_preprocess <- function() c("center", "scale", "pca")
 
 #' Super Learner Wrapper
@@ -130,11 +104,9 @@ lsiv_mysl_preprocess <- function() c("center", "scale", "pca")
 #' algorithm (van der Laan et al., 2007) with a configurable library of
 #' base learners.
 #'
-#' This is the `MySL()` wrapper of the \pkg{UDID} package, ported unchanged in
-#' its statistical content; see the file header of `R/mysl.R` for the list of
-#' plumbing adaptations.  Within \pkg{LSIV} it supplies the nuisance-function
-#' estimates of [LSIV()] and [LSIV_LATE()]. [LSIV()] always uses this wrapper,
-#' while [LSIV_LATE()] exposes a learner choice.
+#' \NTC{Provides nuisance function estimates for [LSIV()] and [LSIV_LATE()].
+#' [LSIV()] uses this wrapper for its probability models, while [LSIV_LATE()]
+#' offers a choice between Super Learner and GLM.}
 #'
 #' @param Data A data frame containing the outcome and covariates.
 #' @param locY Column index for the outcome variable.
@@ -147,11 +119,10 @@ lsiv_mysl_preprocess <- function() c("center", "scale", "pca")
 #'   dropped with a warning, because every machine-learning package is a
 #'   *suggested*, not a required, dependency of \pkg{LSIV}.
 #' @param obsWeights Optional observation weights.
-#' @param SL.N Sample size used to set the Version1 GBM minimum-node tuning
-#'   value. `LSIV()` supplies the full analysis sample size.
-#' @param PS.thr Propensity score threshold (default 1e-3).  Retained for
-#'   interface compatibility with the \pkg{UDID} version; probability bounding
-#'   is applied by the callers through [lsiv_bound_prob()].
+#' @param SL.N \NTC{Sample size used to set the GBM minimum-node tuning value.
+#'   `LSIV()` supplies the full analysis sample size.}
+#' @param PS.thr \NTC{Numeric threshold argument with no effect on the fit.
+#'   Callers apply probability bounds through [lsiv_bound_prob()].}
 #' @param CVlist Optional list of cross-validation fold assignments.
 #'
 #' @details
@@ -450,7 +421,7 @@ MySL <- function( Data, locY, locX, Ydist=stats::gaussian(),
   ## Build a local environment that contains all learner and screen functions
   ## so SuperLearner can find them by name.
   sl_env <- list2env(list(
-    ## Version1 caret preprocessing shared by the custom wrappers
+    ## caret preprocessing shared by the custom wrappers
     SL.preprocess      = SL.preprocess,
     ## Screen functions
     All               = SuperLearner::All,

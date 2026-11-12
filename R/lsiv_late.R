@@ -37,9 +37,7 @@
 ##   Pr(Z | X) = pi(X)^Z {1 - pi(X)}^{1-Z} ,
 ##
 ## NOT pi(X).  With Z = 1 the factor is (+1)/pi(X) and with Z = 0 it is
-## (-1)/{1 - pi(X)}, which is exactly the pair of AIPW weights.  Using pi(X) in
-## both arms is a genuine bias: on a test DGP with pi(X) = expit(1.8 X) it moved
-## the estimate by -0.106 against a Monte Carlo error of 0.004.
+## (-1)/{1 - pi(X)}, giving the two AIPW weights.
 ##
 ## phi_A is (*) with A in place of Y.  LATE is the ratio tau_Y / tau_A, so by
 ## the delta method its efficient influence function is

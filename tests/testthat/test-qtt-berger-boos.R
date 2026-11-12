@@ -21,8 +21,7 @@ test_that("jump-aware binary inversion includes the true quantile difference", {
   fit <- lsiv_estimate(d$Y, d$A, d$Z, matrix(0, length(d$Y), 1L),
                        type = "binary", grid = 0:1, weights = c(1, 1),
                        nuisance = d$nuisance, estimand = "QTT", QTT.quantile = .5)
-  # Both population medians are 1, so the true QTT is zero. The old equality
-  # test returned [1, 1] on this sample despite the correctly specified nuisances.
+  # Both population medians are 1, so the true QTT is zero.
   expect_equal(unname(fit$ci_matrix[1L, ]), c(0, 1))
   expect_true(all(fit$qtt$adjusted_pvalue[, 1L] > .05))
   expect_equal(fit$qtt$cdf_left, c(0, fit$qtt$cdf[1L]), tolerance = 1e-12)
@@ -115,7 +114,6 @@ test_that("continuous inversion includes accepted cells between integration node
   f <- lsiv_qtt(Y, A, Z, "continuous", grid, weights, fp, nuisance,
                 quantiles = .5)
   # The true effect is 1 and its counterfactual median .05 lies off the grid.
-  # Previously this sample returned [1.0496, 1.2505], missing an accepted value.
   expect_lte(f$ci[1L, "lower"], 1)
   expect_gte(f$ci[1L, "upper"], 1)
   accepted <- f$accepted_intervals[[1L]]

@@ -1,5 +1,5 @@
-## Distributional estimands and the falsification test share the nuisance
-## estimates and fixed point used by the original ATT implementation.
+## ATT, QTT, and falsification calculations share nuisance estimates and the
+## fitted fixed point.
 
 test_that("the generalized counterfactual EIF reproduces the ATT EIF algebra", {
   set.seed(81)
@@ -106,7 +106,7 @@ test_that("LSIV median-combines repeated QTT estimates and Berger-Boos intervals
   expect_match(f$se_type, "median of repeated Berger-Boos intervals")
 })
 
-test_that("the ATT-only API remains backward compatible", {
+test_that("ATT-only fits return a named estimate and confidence interval", {
   set.seed(83)
   d <- test_dgp(350, "binary")
   f <- LSIV(d$Y, d$A, d$Z, d$X, y_type = "binary")

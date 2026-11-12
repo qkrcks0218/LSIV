@@ -92,10 +92,8 @@ iterative update of Theorem 3.2, eq. (19),
 \eqn{h^{(j+1)} = \tilde\Psi(h^{(j)})} with
 \eqn{\tilde\Psi(g) = \Psi(g) / \int \Psi(g)}, which Theorem 3.2 shows
 converges to the fixed point from *any* non-negative starting function
-integrating to one.  `"closed-form"` is available only for a binary outcome
-(`M = 2`), where the fixed-point equation reduces to a scalar quadratic and
-can be solved exactly; this reproduces the `g0y1.binary()` routine of the
-manuscript's replication code.
+integrating to one. \NTC{`"closed-form"` solves the scalar quadratic for a
+binary outcome (`M = 2`) exactly.}
 }
 \examples{
 ## Two-point outcome support: the closed-form and iterative solvers agree.

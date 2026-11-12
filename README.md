@@ -2,8 +2,6 @@
 
 This repository contains the `LSIV` R package implementing the methodologies in [Park and Tchetgen Tchetgen (2026)](https://arxiv.org/abs/2602.02265). The package provides nonparametric inference for the average and quantile treatment effects on the treated under a logit-separable binary treatment choice model, together with a falsification test of the model's observed data implications.
 
-The package is currently in development. 
-
 ## Installation
 
 To install the package from GitHub, run the commands below. If `devtools` is not installed, run `install.packages("devtools")` first.

@@ -23,8 +23,8 @@ lsiv_grid(
 
 \item{n_grid}{Number of equally spaced points for a continuous outcome.}
 
-\item{include_observed}{For a continuous outcome, whether to add the observed
-values `Y[A == 0]` to the grid (the default, matching the replication code).}
+\item{include_observed}{\NTC{For a continuous outcome, whether to add the
+observed values `Y[A == 0]` to the grid; defaults to TRUE.}}
 
 \item{expand}{Multiple of `sd(Y[A == 0])` by which the grid range is expanded
 beyond the observed range of the untreated outcomes, for a continuous
@@ -39,10 +39,9 @@ A list with components `grid` and `weights`.
 \description{
 For a binary or discrete outcome the grid is the *observed support* of the
 treatment-free outcome, `sort(unique(Y[A == 0]))`, with counting-measure
-weights.  For a continuous outcome a fine grid over the observed range is
-constructed (optionally augmented with the observed values, as in the
-replication code of the manuscript) and mid-point cell widths are used as
-integration weights.
+weights. \NTC{For a continuous outcome, a fine grid covers the observed
+range and can include the observed values. Integration weights are
+mid-point cell widths.}
 }
 \examples{
 set.seed(1); A <- rbinom(20, 1, 0.5); Y <- rbinom(20, 1, 0.5)

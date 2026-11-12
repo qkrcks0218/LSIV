@@ -138,9 +138,8 @@ construct the candidate bandwidths for `"cv_common"` and
 A user-specified value must lie strictly between zero and
 \code{1 - level}.}}
 
-\item{QTT_numBB}{\NTC{Legacy bootstrap-count argument retained for call
-compatibility. It has no effect on QTT inference, which now uses an
-order-statistic treated-quantile interval.}}
+\item{QTT_numBB}{\NTC{Positive integer argument with no effect on QTT
+inference. Treated-quantile intervals use binomial order-statistic ranks.}}
 
 \item{falsification}{Whether to run the falsification test.}
 
@@ -260,7 +259,7 @@ supplied. The defaults are summarized below.
   \code{QTT_support = NULL} uses the outcome type to choose the inversion.
   \code{QTT_bounds = NULL} leaves outcome bounds unspecified except for
   binary outcomes, which use \code{c(0, 1)}.
-  The legacy \code{QTT_numBB = 1000L} argument is unused.}
+  \code{QTT_numBB = 1000L} does not affect inference.}
   \item \NTC{Falsification and diagnostics.} The falsification test and diagnostic
   warnings are off by default. When enabled, the falsification test uses
   1000 bootstrap draws and default marginal bin counts. A `NULL`

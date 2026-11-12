@@ -24,7 +24,3 @@ numeric vector of length N_eval
 Computes  r(x_i) = sum_c w_c * exp(-||x_i - center_c||^2 / (2*sigma^2))
 for every row x_i of \code{x}.
 }
-\details{
-Drop-in replacement for:
-  as.vector(densratio:::compute_kernel_Gaussian(x, centers, sigma) %*% kernel_weights)
-}

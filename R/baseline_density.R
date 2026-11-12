@@ -1,7 +1,6 @@
 ## Nonparametric baseline-density estimation for
-## f(Y | A = 0, Z = 0, X).  This ports the np/gss candidate library and the
-## inner-validation ensemble used in Data_Version1/1.LSIV_JC.R and
-## Simulation_Version1/1.Sim_Conti_SepIV.R.
+## f(Y | A = 0, Z = 0, X), using np/gss candidates and inner-validation
+## ensemble weights.
 
 ## Internal: floor and normalise each row against the outcome-grid weights.
 lsiv_density_normalize <- function(density, weights, density_floor) {
@@ -44,8 +43,7 @@ lsiv_np_cde_fit <- function(data, xnames,
 }
 
 ## Internal: evaluate the np estimate for every new X and outcome-grid pair in
-## one call.  np accepts paired evaluation rows, so arranging the data in grid
-## blocks avoids the per-observation R loop used by the legacy np/gss path.
+## one call, with paired evaluation rows arranged in grid blocks.
 lsiv_np_cde_predict_grid <- function(object, training, newx, grid) {
   nr <- nrow(newx)
   M <- length(grid)
@@ -72,8 +70,7 @@ lsiv_np_cde_predict_grid <- function(object, training, newx, grid) {
 }
 
 ## Internal: evaluate the np estimate.  `training` can be an inner-training
-## subset while `object$bandwidth` stays fixed at the outer-training value,
-## exactly as in the Version1 code.
+## subset while `object$bandwidth` stays fixed at the outer-training value.
 lsiv_np_cde_predict <- function(object, training, newx, y) {
   y <- as.numeric(y)
   if (identical(object$kind, "conditional")) {
@@ -119,7 +116,7 @@ lsiv_gss_cde_fit <- function(data, xnames, ydomain,
 }
 
 ## Internal: evaluate one gss density row.  Evaluation failures are handled by
-## the caller, which substitutes the np candidate as in the Version1 code.
+## the caller, which substitutes the np candidate.
 lsiv_gss_cde_predict_row <- function(object, newx, y) {
   if (identical(object$kind, "unconditional")) {
     return(as.numeric(gss::dssden(object$fit, data.frame(Y = y))))
@@ -153,9 +150,7 @@ lsiv_cde_candidate_predict <- function(np_fit, gss_fit, training, newx, grid,
   )
 }
 
-## Internal: obtain a candidate density at each observed outcome.  Version1
-## put every untreated outcome on the integration grid.  Linear interpolation
-## retains the same values in that case and also supports a user-supplied grid.
+## Internal: interpolate a candidate density at each observed outcome.
 lsiv_density_at_observed <- function(density, grid, y) {
   vapply(seq_along(y), function(i) {
     stats::approx(grid, density[i, ], xout = y[i], rule = 2,
@@ -196,7 +191,7 @@ lsiv_density_mspe_weights <- function(H, h) {
   )
 }
 
-## \NTC{Retain the internal ratio helper name for existing callers.}
+## \NTC{MSPE mixture weights for density-ratio candidates.}
 lsiv_ratio_ensemble_weights <- function(H, h) {
   lsiv_density_mspe_weights(H, h)
 }
@@ -377,6 +372,5 @@ lsiv_baseline_density_np_gss_cv <- function(Y, A, Z, X, grid, weights, folds,
   )
 }
 
-## Backward-compatible internal alias for code written before the option was
-## renamed to `np_gss_cv`.
+## Internal alias for the np/gss baseline-density ensemble.
 lsiv_baseline_density_np_gss <- lsiv_baseline_density_np_gss_cv

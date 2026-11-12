@@ -1,6 +1,5 @@
 ## ---------------------------------------------------------------------------
-## The KLIEP density-ratio engine ported from the UDID package, and its use as
-## the R_Y estimator of eq. (15) inside LSIV().
+## The KLIEP density-ratio engine and the R_Y estimator of eq. (15).
 ## ---------------------------------------------------------------------------
 
 test_that("KLIEP and KLIEP/uLSIF use the requested numerical floor", {
@@ -218,7 +217,7 @@ test_that("the fast ratio estimator CV-weights both median candidates", {
   expect_true(all(is.finite(fit$ratio)))
 })
 
-test_that("the simplified ratio interface is validated", {
+test_that("the ratio interface validates its arguments", {
   set.seed(409)
   d <- test_dgp(300, "continuous")
   expect_error(LSIV(d$Y, d$A, d$Z, d$X, y_type = "continuous",
@@ -269,4 +268,248 @@ test_that("standalone uLSIF uses the selected bandwidth rule", {
   expect_identical(f$ratio_method, "ulsif")
   expect_identical(f$ratio_bandwidth, "median_separate")
   expect_identical(f$nuisance$density_ratio_ensemble$candidates, "ulsif")
+})
+
+ratio_direction_data <- function() {
+  d <- expand.grid(replicate = seq_len(240L), Z = 0:1, X1 = c(-1, 1))
+  d$A <- as.integer(d$replicate <= ifelse(d$Z == as.integer(d$X1 > 0), 192, 48))
+  d$Y <- seq(-0.9, 0.9, length.out = nrow(d))
+  list(Y = d$Y, A = d$A, Z = d$Z, X = cbind(X1 = d$X1),
+       folds = list(seq(1L, nrow(d), by = 2L), seq(2L, nrow(d), by = 2L)))
+}
+
+test_that("direct ratio fits follow the covariate-specific first-stage direction", {
+  d <- ratio_direction_data()
+  baseline_calls <- ratio_calls <- list()
+  baseline_fit <- function(Y, A, Z, X, grid, weights, folds, ...) {
+    direction <- if (all(Z == d$Z)) "1" else "0"
+    baseline_calls[[direction]] <<- list(Z = Z, folds = folds)
+    base <- if (direction == "1") c(0.5, 0.5) else c(0.25, 0.75)
+    list(density = matrix(base, length(Y), 2L, byrow = TRUE),
+         method = "controlled baseline", candidates = "np")
+  }
+  ratio_fit <- function(Y, A, Z, X, grid, weights, folds,
+                        baseline_density, fold = 5L, ...) {
+    direction <- if (all(Z == d$Z)) "1" else "0"
+    ratio_calls[[direction]] <<- list(Z = Z, folds = folds,
+                                     base = baseline_density)
+    ratio <- if (direction == "1") c(0.4, 1.6) else c(1.6, 0.8)
+    list(ratio = matrix(ratio, length(Y), 2L, byrow = TRUE),
+         method = "controlled direct ratio", candidates = c("kliep", "ulsif"),
+         weights = matrix(0.5, length(folds), 2L), ratio_method = "kliep_ulsif")
+  }
+  testthat::local_mocked_bindings(
+    lsiv_baseline_density_np_normal = baseline_fit,
+    lsiv_kliep_ulsif_ratio_grid = ratio_fit,
+    lsiv_kliep_ulsif_median_ratio_grid = ratio_fit,
+    lsiv_single_density_ratio_grid = ratio_fit,
+    .package = "LSIV"
+  )
+  settings <- list(
+    c("kliep_ulsif", "cv_separate"), c("kliep_ulsif", "cv_common"),
+    c("kliep_ulsif", "median_common"), c("kliep_ulsif", "median_separate"),
+    c("kliep", "cv_separate"), c("ulsif", "median_separate")
+  )
+  for (setting in settings) {
+    fit <- suppressWarnings(lsiv_estimate(
+      d$Y, d$A, d$Z, d$X, type = "continuous", grid = c(-1, 1),
+      weights = c(1, 1), y_ref = -1, folds = d$folds,
+      learner = "glm", treatment_formula = A ~ Z * X1,
+      outcome_density = "np_normal", ratio_method = setting[1L],
+      ratio_bandwidth = setting[2L]
+    ))
+    forward <- d$X[, 1L] > 0
+    reverse <- !forward
+    expect_identical(fit$zM, as.integer(forward))
+    expect_setequal(names(baseline_calls), c("0", "1"))
+    expect_setequal(names(ratio_calls), c("0", "1"))
+    expect_equal(ratio_calls[["1"]]$Z, d$Z)
+    expect_equal(ratio_calls[["0"]]$Z, 1 - d$Z)
+    expect_identical(ratio_calls[["1"]]$folds, d$folds)
+    expect_identical(ratio_calls[["0"]]$folds, d$folds)
+    expect_equal(ratio_calls[["1"]]$base[1L, ], c(0.5, 0.5))
+    expect_equal(ratio_calls[["0"]]$base[1L, ], c(0.25, 0.75))
+    expect_equal(fit$nuisance$fY_z0[forward, ],
+                 matrix(c(0.5, 0.5), sum(forward), 2L, byrow = TRUE))
+    expect_equal(fit$nuisance$fY_z1[forward, ],
+                 matrix(c(0.2, 0.8), sum(forward), 2L, byrow = TRUE))
+    expect_equal(fit$nuisance$fY_z0[reverse, ],
+                 matrix(c(0.4, 0.6), sum(reverse), 2L, byrow = TRUE))
+    expect_equal(fit$nuisance$fY_z1[reverse, ],
+                 matrix(c(0.25, 0.75), sum(reverse), 2L, byrow = TRUE))
+    expect_equal(fit$nuisance$RY[reverse, ],
+                 matrix(c(0.625, 1.25), sum(reverse), 2L, byrow = TRUE))
+    expect_equal(fit$nuisance$RY,
+                 fit$nuisance$fY_z1 / fit$nuisance$fY_z0)
+    expect_equal(rowSums(fit$estimation_nuisance$fY_z0), rep(1, length(d$Y)))
+    expect_equal(rowSums(fit$estimation_nuisance$fY_z1), rep(1, length(d$Y)))
+    expect_identical(fit$nuisance$density_ratio_ensemble$by_zM[["0"]]$numerator_z,
+                     0L)
+    expect_identical(fit$nuisance$baseline_density$by_zM[["0"]]$denominator_z,
+                     1L)
+    expect_true(all(is.finite(fit$eif)))
+  }
+})
+
+test_that("a failed reverse ratio fit preserves the forward direct fit", {
+  d <- ratio_direction_data()
+  testthat::local_mocked_bindings(
+    lsiv_baseline_density_np_normal = function(Y, ...) {
+      list(density = matrix(0.5, length(Y), 2L),
+           method = "controlled baseline", candidates = "np")
+    },
+    lsiv_kliep_ulsif_ratio_grid = function(Y, A, Z, ...) {
+      if (all(Z == 1 - d$Z)) return(NULL)
+      list(ratio = matrix(c(0.4, 1.6), length(Y), 2L, byrow = TRUE),
+           method = "controlled direct ratio", candidates = c("kliep", "ulsif"),
+           ratio_method = "kliep_ulsif")
+    },
+    .package = "LSIV"
+  )
+  expect_warning(fit <- lsiv_estimate(
+    d$Y, d$A, d$Z, d$X, type = "continuous", grid = c(-1, 1),
+    weights = c(1, 1), y_ref = -1, folds = d$folds,
+    learner = "glm", treatment_formula = A ~ Z * X1,
+    outcome_density = "np_normal", ratio_method = "kliep_ulsif"
+  ), "falling back to the logistic ratio")
+  expect_identical(fit$ratio_method, "kliep_ulsif + logistic (partial fallback)")
+  expect_identical(fit$nuisance$ratio_method_by_zM[["1"]], "kliep_ulsif")
+  expect_identical(fit$nuisance$ratio_method_by_zM[["0"]],
+                   "logistic (kliep_ulsif fallback)")
+  expect_equal(fit$nuisance$RY[d$X[, 1L] > 0, ],
+               matrix(c(0.4, 1.6), sum(d$X[, 1L] > 0), 2L, byrow = TRUE))
+  expect_equal(rowSums(fit$nuisance$fY_z0), rep(1, length(d$Y)))
+  expect_equal(rowSums(fit$nuisance$fY_z1), rep(1, length(d$Y)))
+})
+
+test_that("uLSIF fits both directions when the conditional first stage changes sign", {
+  skip_if_not_installed("densityratio")
+  set.seed(20261112)
+  n <- 480L
+  X <- cbind(X1 = stats::runif(n, -1, 1))
+  Z <- stats::rbinom(n, 1, 0.5)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.3 + 5 * (2 * Z - 1) * X[, 1L]))
+  Y <- 0.5 * X[, 1L] + A + stats::rnorm(n)
+  fit <- suppressWarnings(lsiv_estimate(
+    Y, A, Z, X, type = "continuous", learner = "glm", crossfit = 2L,
+    treatment_formula = A ~ Z * X1, outcome_density = "gaussian",
+    ratio_method = "ulsif", ratio_bandwidth = "median_separate",
+    ratio_kernels = 15L, ratio_folds = 2L, n_grid = 21L,
+    include_observed = FALSE
+  ))
+  expect_setequal(unique(fit$zM), 0:1)
+  expect_identical(fit$ratio_method, "ulsif")
+  expect_setequal(names(fit$nuisance$density_ratio_ensemble$by_zM), c("0", "1"))
+  expect_true(all(is.finite(fit$nuisance$RY)))
+  expect_true(all(fit$nuisance$RY > 0))
+  expect_equal(fit$nuisance$RY,
+               fit$nuisance$fY_z1 / fit$nuisance$fY_z0)
+  expect_equal(as.vector(fit$nuisance$fY_z0 %*% fit$weights), rep(1, n),
+               tolerance = 1e-10)
+  expect_equal(as.vector(fit$nuisance$fY_z1 %*% fit$weights), rep(1, n),
+               tolerance = 1e-10)
+  expect_true(all(is.finite(fit$estimate)))
+  expect_true(all(is.finite(fit$vcov)))
+})
+
+test_that("direct estimation is invariant to reversing instrument labels", {
+  skip_if_not_installed("densityratio")
+  set.seed(20261113)
+  n <- 360L
+  X <- cbind(X1 = stats::rnorm(n))
+  Z <- stats::rbinom(n, 1, 0.5)
+  A <- stats::rbinom(n, 1, stats::plogis(-0.7 + 2 * Z + 0.2 * X[, 1L]))
+  Y <- 0.4 * X[, 1L] + A + stats::rnorm(n)
+  folds <- lsiv_make_folds(n, A, Z, 2L)
+  run <- function(instrument) {
+    set.seed(20261114)
+    suppressWarnings(lsiv_estimate(
+      Y, A, instrument, X, type = "continuous", learner = "glm", folds = folds,
+      outcome_density = "gaussian", ratio_method = "ulsif",
+      ratio_bandwidth = "median_separate", ratio_kernels = 15L,
+      ratio_folds = 2L, n_grid = 21L, include_observed = FALSE
+    ))
+  }
+  forward <- run(Z)
+  reverse <- run(1 - Z)
+  expect_true(all(forward$zM == 1L))
+  expect_true(all(reverse$zM == 0L))
+  expect_identical(names(forward$nuisance$density_ratio_ensemble$by_zM), "1")
+  expect_identical(names(reverse$nuisance$density_ratio_ensemble$by_zM), "0")
+  expect_equal(forward$nuisance$fY_z0, reverse$nuisance$fY_z1,
+               tolerance = 1e-8)
+  expect_equal(forward$nuisance$fY_z1, reverse$nuisance$fY_z0,
+               tolerance = 1e-8)
+  expect_equal(forward$estimate, reverse$estimate, tolerance = 1e-6)
+  expect_equal(forward$vcov, reverse$vcov, tolerance = 1e-6)
+})
+
+test_that("reciprocal fallback uses training counts below 100 in either direction", {
+  for (flip in c(FALSE, TRUE)) {
+    n <- 600L
+    X <- cbind(X1 = c(rep(-1, 100L), rep(1, 200L),
+                     rep(-1, 99L), rep(1, 201L)))
+    Z <- rep(0:1, length.out = n)
+    A <- integer(n)
+    for (xx in c(-1, 1)) {
+      for (zz in 0:1) {
+        for (fold in 0:1) {
+          ii <- which(X[, 1L] == xx & Z == zz &
+                        as.integer(seq_len(n) > 300L) == fold)
+          rate <- if (zz == as.integer(xx > 0)) 0.8 else 0.2
+          A[ii[seq_len(round(length(ii) * rate))]] <- 1L
+        }
+      }
+    }
+    if (flip) Z <- 1L - Z
+    observed_Z <- Z
+    Y <- seq(-0.9, 0.9, length.out = n)
+    folds <- list(seq_len(300L), 301:600)
+    testthat::local_mocked_bindings(
+      lsiv_baseline_density_np_normal = function(Y, A, Z, ...) {
+        direction <- if (all(Z == observed_Z)) {
+          1L
+        } else {
+          0L
+        }
+        base <- if (direction == 1L) c(0.5, 0.5) else c(0.25, 0.75)
+        list(density = matrix(base, length(Y), 2L, byrow = TRUE),
+             method = "controlled baseline", candidates = "np")
+      },
+      lsiv_kliep_ulsif_ratio_grid = function(Y, A, Z, ...) {
+        direction <- if (all(Z == observed_Z)) {
+          1L
+        } else {
+          0L
+        }
+        ratio <- if (direction == 1L) c(0.4, 1.6) else c(1.6, 0.8)
+        list(ratio = matrix(ratio, length(Y), 2L, byrow = TRUE),
+             method = "controlled direct ratio", candidates = c("kliep", "ulsif"),
+             ratio_method = "kliep_ulsif")
+      },
+      .package = "LSIV"
+    )
+    fit <- suppressWarnings(lsiv_estimate(
+      Y, A, Z, X, type = "continuous", grid = c(-1, 1), weights = c(1, 1),
+      y_ref = -1, folds = folds, learner = "glm", treatment_formula = A ~ Z * X1,
+      outcome_density = "np_normal", ratio_method = "kliep_ulsif"
+    ))
+    small_direction <- as.character(as.integer(flip))
+    direction <- fit$nuisance$ratio_direction
+    expect_identical(direction$min_group, 100L)
+    expect_equal(unname(direction$training_counts[, small_direction]), c(99, 100))
+    small <- X[, 1L] < 0
+    fallback <- small & seq_len(n) <= 300L
+    expect_identical(direction$reciprocal_fallback, fallback)
+    expect_identical(direction$fit_direction[fallback],
+                     rep.int(1L - as.integer(flip), sum(fallback)))
+    expect_identical(direction$fit_direction[!fallback], fit$zM[!fallback])
+    expected <- if (flip) c(0.625, 1.25) else c(0.4, 1.6)
+    expect_equal(fit$nuisance$RY[fallback, ],
+                 matrix(expected, sum(fallback), 2L, byrow = TRUE))
+    expected_direct <- if (flip) c(0.4, 1.6) else c(0.625, 1.25)
+    direct <- small & seq_len(n) > 300L
+    expect_equal(fit$nuisance$RY[direct, ],
+                 matrix(expected_direct, sum(direct), 2L, byrow = TRUE))
+  }
 })

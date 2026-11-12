@@ -38,5 +38,4 @@ List with kernel_weights (vec), sigma (vec), centers (mat)
 }
 \description{
 Runs coordinate-descent sigma search + KLIEP weight optimisation.
-Drop-in replacement for KLIEP_bw() in R but much faster.
 }

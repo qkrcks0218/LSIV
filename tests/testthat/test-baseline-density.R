@@ -89,7 +89,7 @@ test_that("np_cv uses the likelihood-CV bandwidth without a gss candidate", {
   expect_equal(rowSums(fit$density), rep(1, n), tolerance = 1e-8)
 })
 
-test_that("the slow Version1 np/gss and CV KLIEP/uLSIF path remains available", {
+test_that("np/gss densities and cross-validated KLIEP/uLSIF ratios fit together", {
   skip_if_not_installed("np")
   skip_if_not_installed("gss")
   skip_if_not_installed("densityratio")

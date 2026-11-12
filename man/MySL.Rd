@@ -34,12 +34,11 @@ dropped with a warning, because every machine-learning package is a
 
 \item{obsWeights}{Optional observation weights.}
 
-\item{SL.N}{Sample size used to set the Version1 GBM minimum-node tuning
-value. `LSIV()` supplies the full analysis sample size.}
+\item{SL.N}{\NTC{Sample size used to set the GBM minimum-node tuning value.
+`LSIV()` supplies the full analysis sample size.}}
 
-\item{PS.thr}{Propensity score threshold (default 1e-3).  Retained for
-interface compatibility with the \pkg{UDID} version; probability bounding
-is applied by the callers through [lsiv_bound_prob()].}
+\item{PS.thr}{\NTC{Numeric threshold argument with no effect on the fit.
+Callers apply probability bounds through [lsiv_bound_prob()].}}
 
 \item{CVlist}{Optional list of cross-validation fold assignments.}
 }
@@ -52,11 +51,9 @@ algorithm (van der Laan et al., 2007) with a configurable library of
 base learners.
 }
 \details{
-This is the `MySL()` wrapper of the \pkg{UDID} package, ported unchanged in
-its statistical content; see the file header of `R/mysl.R` for the list of
-plumbing adaptations.  Within \pkg{LSIV} it supplies the nuisance-function
-estimates of [LSIV()] and [LSIV_LATE()]. [LSIV()] always uses this wrapper,
-while [LSIV_LATE()] exposes a learner choice.
+\NTC{Provides nuisance function estimates for [LSIV()] and [LSIV_LATE()].
+[LSIV()] uses this wrapper for its probability models, while [LSIV_LATE()]
+offers a choice between Super Learner and GLM.}
 
 
 \code{MySL} is a convenience wrapper of the \code{SuperLearner}

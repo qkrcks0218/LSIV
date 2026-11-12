@@ -173,9 +173,7 @@ test_that("LSIV(type = 'continuous') is unbiased with oracle nuisance functions"
                        grid = g$grid, weights = g$weights)
     est[r] <- f$estimate; se[r] <- f$se
   }
-  ## True ATT for the continuous DGP in Simulation_F_Both/0.DGP.R is
-  ## approximately 1.043.  This locks the package DGP to the legacy simulation
-  ## rather than to the short-lived smoothstep variant.
+  ## The true ATT for this continuous DGP is approximately 1.043.
   expect_lt(abs(mean(est) - 1.043), 3 * sd(est) / sqrt(length(est)) + 0.02)
   ## the influence-function SE tracks the empirical SD
   expect_lt(abs(mean(se) / sd(est) - 1), 0.25)

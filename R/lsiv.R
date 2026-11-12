@@ -14,17 +14,16 @@
 #'
 #' For a binary or discrete outcome the grid is the *observed support* of the
 #' treatment-free outcome, `sort(unique(Y[A == 0]))`, with counting-measure
-#' weights.  For a continuous outcome a fine grid over the observed range is
-#' constructed (optionally augmented with the observed values, as in the
-#' replication code of the manuscript) and mid-point cell widths are used as
-#' integration weights.
+#' weights. \NTC{For a continuous outcome, a fine grid covers the observed
+#' range and can include the observed values. Integration weights are
+#' mid-point cell widths.}
 #'
 #' @param Y,A Outcome and treatment vectors.
 #' @param type One of `"binary"`, `"discrete"`, `"continuous"`.
 #' @param y_ref Reference outcome value; the grid is forced to contain it.
 #' @param n_grid Number of equally spaced points for a continuous outcome.
-#' @param include_observed For a continuous outcome, whether to add the observed
-#'   values `Y[A == 0]` to the grid (the default, matching the replication code).
+#' @param include_observed \NTC{For a continuous outcome, whether to add the
+#'   observed values `Y[A == 0]` to the grid; defaults to TRUE.}
 #' @param expand Multiple of `sd(Y[A == 0])` by which the grid range is expanded
 #'   beyond the observed range of the untreated outcomes, for a continuous
 #'   outcome.  Making the expansion proportional to the outcome's own scale
@@ -69,7 +68,7 @@ lsiv_grid <- function(Y, A, type, y_ref = 0, n_grid = 101L,
 
 ## Internal: default nuisance estimation with K-fold cross-fitting.
 ## Returns cross-fitted values of f(Z=1|X), f(A=1|Z=z,X) and f(y|A=0,Z=z,X).
-lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
+lsiv_nuisance_direction <- function(Y, A, Z, X, type, grid, weights, folds,
                                   instrument_formula, treatment_formula,
                                   outcome_formula, density_floor,
                                   outcome_density = "np_gss_cv", n_bins = 12L,
@@ -82,12 +81,20 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
                                    c(0.5, 0.75, 0.9),
                                   ratio_kernels = 100L,
                                   ratio_folds = 5L, dr_floor = 1e-4,
-                                  Aarg = NULL, Zarg = NULL) {
+                                  Aarg = NULL, Zarg = NULL,
+                                  probabilities = NULL, numerator_z = 1L) {
   n <- length(Y)
   M <- length(grid)
   df <- lsiv_frame(Y, A, Z, X)
-  pZ1 <- numeric(n)
-  pA1_z0 <- pA1_z1 <- numeric(n)
+  if (is.null(Aarg)) Aarg <- A
+  if (is.null(Zarg)) Zarg <- Z
+  if (numerator_z == 0L) Zarg <- 1L - Zarg
+  Z_density <- if (numerator_z == 0L) 1L - Z else Z
+  ratio_df <- df
+  ratio_df$Z <- Z_density
+  pZ1 <- if (is.null(probabilities)) numeric(n) else probabilities$pZ1
+  pA1_z0 <- if (is.null(probabilities)) numeric(n) else probabilities$pA1_z0
+  pA1_z1 <- if (is.null(probabilities)) numeric(n) else probabilities$pA1_z1
   fY_z0 <- fY_z1 <- matrix(0, n, M)
   RY <- if (type == "continuous") matrix(1, n, M) else NULL
   ratio_ensemble_used <- FALSE
@@ -100,16 +107,6 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
   if (is.null(instrument_formula)) instrument_formula <- stats::as.formula(paste("Z ~", rhsX))
   if (is.null(treatment_formula)) treatment_formula <- stats::as.formula(paste("A ~ Z +", rhsX))
   if (is.null(outcome_formula))  outcome_formula  <- stats::as.formula(paste("Y ~ Z +", rhsX))
-  ## Targeted density-ratio model.  With a binary instrument, Bayes' rule gives
-  ##   R_Y(y,X) = f(y|A=0,Z=1,X)/f(y|A=0,Z=0,X)
-  ##            = { P(Z=1|Y=y,A=0,X)/P(Z=0|Y=y,A=0,X) }
-  ##              * { P(Z=0|A=0,X)  /P(Z=1|A=0,X)   } ,
-  ## so the density RATIO of eq. (15) -- the quantity the fixed point of
-  ## Theorem 3.1 actually needs -- can be estimated from a single logistic
-  ## regression of Z on (Y, X) among the untreated, instead of dividing two
-  ## separately estimated densities.  Section 5.1 of the manuscript recommends
-  ## exactly this: "one can employ strategies that target the density ratio
-  ## directly, yielding more stable and reliable estimates".
   if (is.null(ratio_formula)) {
     ybas <- if (type == "continuous") "splines::ns(Y, df = 3)" else "factor(Y)"
     ratio_formula <- stats::as.formula(paste("Z ~", ybas, "+", rhsX))
@@ -123,15 +120,15 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
     baseline_density_fit <- switch(
       outcome_density,
       np_normal = lsiv_baseline_density_np_normal(
-        Y, A, Z, X, grid, weights, folds,
+        Y, A, Z_density, X, grid, weights, folds,
         density_floor = density_floor
       ),
       np_cv = lsiv_baseline_density_np_cv(
-        Y, A, Z, X, grid, weights, folds,
+        Y, A, Z_density, X, grid, weights, folds,
         density_floor = density_floor
       ),
       np_gss_cv = lsiv_baseline_density_np_gss_cv(
-        Y, A, Z, X, grid, weights, folds,
+        Y, A, Z_density, X, grid, weights, folds,
         density_floor = density_floor,
         density_cv_folds = density_cv_folds,
         gss_formula = gss_formula
@@ -145,27 +142,26 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
     tr <- setdiff(seq_len(n), te)
     if (length(tr) == 0L) tr <- te            # crossfit = 1 -> in-sample
 
-    ## f(Z = 1 | X)
-    mz <- lsiv_learn_fit(df[tr, , drop = FALSE], "Z", Xnm, stats::binomial(),
-                         learner, SL.list, formula = instrument_formula,
-                         SL.N = n)
-    pZ1[te] <- lsiv_learn_predict(mz, df[te, , drop = FALSE])
-
-    ## f(A = 1 | Z, X)
-    ma <- lsiv_learn_fit(df[tr, , drop = FALSE], "A", c("Z", Xnm),
-                         stats::binomial(), learner, SL.list,
-                         formula = treatment_formula, SL.N = n)
-    d0 <- df[te, , drop = FALSE]; d0$Z <- 0
-    d1 <- df[te, , drop = FALSE]; d1$Z <- 1
-    pA1_z0[te] <- lsiv_learn_predict(ma, d0)
-    pA1_z1[te] <- lsiv_learn_predict(ma, d1)
+    if (is.null(probabilities)) {
+      mz <- lsiv_learn_fit(df[tr, , drop = FALSE], "Z", Xnm, stats::binomial(),
+                           learner, SL.list, formula = instrument_formula,
+                           SL.N = n)
+      pZ1[te] <- lsiv_learn_predict(mz, df[te, , drop = FALSE])
+      ma <- lsiv_learn_fit(df[tr, , drop = FALSE], "A", c("Z", Xnm),
+                           stats::binomial(), learner, SL.list,
+                           formula = treatment_formula, SL.N = n)
+      d0 <- df[te, , drop = FALSE]; d0$Z <- 0
+      d1 <- df[te, , drop = FALSE]; d1$Z <- 1
+      pA1_z0[te] <- lsiv_learn_predict(ma, d0)
+      pA1_z1[te] <- lsiv_learn_predict(ma, d1)
+    }
+    d0 <- df[te, , drop = FALSE]; d0$Z <- 1L - numerator_z
+    d1 <- df[te, , drop = FALSE]; d1$Z <- numerator_z
 
     ## f(Y | A = 0, Z, X)
     tr0 <- intersect(tr, which(A == 0))
     if (type == "continuous" && outcome_density %in%
         c("np_normal", "np_cv", "np_gss_cv")) {
-      ## These nonparametric paths estimate only the baseline arm.  The Z = 1
-      ## density is reconstructed below from the directly estimated ratio.
       fY_z1[te, ] <- fY_z0[te, ]
     } else if (type == "continuous" && outcome_density == "gaussian") {
       dtr0 <- df[tr0, , drop = FALSE]
@@ -252,14 +248,14 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
     ## targeted density ratio
     if (type == "continuous") {
       mr <- suppressWarnings(stats::glm(ratio_formula,
-                                        data = df[tr0, , drop = FALSE],
+                                        data = ratio_df[tr0, , drop = FALSE],
                                         family = stats::binomial()))
       mq <- suppressWarnings(stats::glm(
         stats::as.formula(paste("Z ~", rhsX)),
-        data = df[tr0, , drop = FALSE], family = stats::binomial()))
-      qx <- stats::predict(mq, newdata = df[te, , drop = FALSE], type = "link")
+        data = ratio_df[tr0, , drop = FALSE], family = stats::binomial()))
+      qx <- stats::predict(mq, newdata = ratio_df[te, , drop = FALSE], type = "link")
       nte <- length(te)
-      dte <- df[te, , drop = FALSE]
+      dte <- ratio_df[te, , drop = FALSE]
       if (lsiv_formula_additive_in_Y(ratio_formula, df)) {
         ## Additive in the Y-terms and the X-terms, so the linear predictor
         ## factorises:  lp(y, x) = lp(y, x_ref) + lp(y_1, x) - lp(y_1, x_ref).
@@ -317,7 +313,8 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
               "density-ratio estimator could not be fitted on every fold; ",
               "falling back to the logistic ratio",
               if (!is.null(arm))
-                sprintf(" (per-fold sizes of the (A=0, Z=1) / (A=0, Z=0) arms: %s)",
+                sprintf(" (per-fold sizes of the (A=0, Z=%d) / (A=0, Z=%d) arms: %s)",
+                        numerator_z, 1L - numerator_z,
                         paste(apply(arm, 1L, paste, collapse = "/"),
                               collapse = ", ")) else "",
               ".", call. = FALSE)
@@ -337,10 +334,15 @@ lsiv_nuisance_default <- function(Y, A, Z, X, type, grid, weights, folds,
     fY_z0[, 1L] <- 1 - fY_z0[, 2L]
     fY_z1[, 1L] <- 1 - fY_z1[, 2L]
   } else if (type == "continuous") {
-    ## rebuild the Z = 1 density from the targeted ratio, then renormalise
     fY_z1 <- pmax(RY, dr_floor) * fY_z0
     fY_z1 <- fY_z1 / rowSums(fY_z1 * Wm)
     RY <- fY_z1 / fY_z0
+    if (numerator_z == 0L) {
+      denominator <- fY_z0
+      fY_z0 <- fY_z1
+      fY_z1 <- denominator
+      RY <- fY_z1 / fY_z0
+    }
   }
   list(pZ1 = pZ1, pA1_z0 = pA1_z0, pA1_z1 = pA1_z1,
        fY_z0 = fY_z0, fY_z1 = fY_z1, RY = RY,
@@ -614,7 +616,7 @@ lsiv_estimate <- function(Y, A, Z, X = NULL,
     ci_matrix["ATT", ] <- ef$att + c(-1, 1) * zcrit * sqrt(ef$var)
   }
   if (!is.null(qtt)) ci_matrix[names(qtt$estimate), ] <- qtt$ci
-  ## Preserve the original length-two `$ci` component for an ATT-only fit.
+  ## ATT-only fits store the two confidence limits as a named vector.
   ci <- if (identical(names(est), "ATT")) {
     stats::setNames(ci_matrix["ATT", ], c("lower", "upper"))
   } else ci_matrix
@@ -661,6 +663,8 @@ lsiv_estimate <- function(Y, A, Z, X = NULL,
       "supplied"
     } else if (type != "continuous") {
       "plugin (automatic)"
+    } else if (length(unique(nuisance$ratio_method_by_zM)) > 1L) {
+      paste0(requested_ratio_method, " + logistic (partial fallback)")
     } else if (isTRUE(nuisance$ratio_ensemble_used)) {
       requested_ratio_method
     } else if (requested_ratio_method != "logistic") {
@@ -817,9 +821,8 @@ lsiv_repeated_median_adjustment <- function(estimates, variances) {
 #'   \code{0.02 * (1 - level)}, giving 0.001 for a 95 percent interval.
 #'   A user-specified value must lie strictly between zero and
 #'   \code{1 - level}.}
-#' @param QTT_numBB \NTC{Legacy bootstrap-count argument retained for call
-#'   compatibility. It has no effect on QTT inference, which now uses an
-#'   order-statistic treated-quantile interval.}
+#' @param QTT_numBB \NTC{Positive integer argument with no effect on QTT
+#'   inference. Treated-quantile intervals use binomial order-statistic ranks.}
 #' @param QTT_support \NTC{Optional complete finite support of the treatment-free
 #'   outcome, as a strictly increasing numeric vector. Supplying it selects
 #'   discrete QTT inference independently of the density-estimation
@@ -877,7 +880,7 @@ lsiv_repeated_median_adjustment <- function(estimates, variances) {
 #'   \code{QTT_support = NULL} uses the outcome type to choose the inversion.
 #'   \code{QTT_bounds = NULL} leaves outcome bounds unspecified except for
 #'   binary outcomes, which use \code{c(0, 1)}.
-#'   The legacy \code{QTT_numBB = 1000L} argument is unused.}
+#'   \code{QTT_numBB = 1000L} does not affect inference.}
 #'   \item \NTC{Falsification and diagnostics.} The falsification test and diagnostic
 #'   warnings are off by default. When enabled, the falsification test uses
 #'   1000 bootstrap draws and default marginal bin counts. A `NULL`

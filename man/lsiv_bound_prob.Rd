@@ -17,10 +17,7 @@ lsiv_bound_prob(p, tol = 0.001)
 }
 \description{
 Applied to every estimated probability used in a denominator (the instrument
-propensity score \eqn{\Pr(Z = 1 \mid X)} in particular).  This is the
-`bound_prob()` guard of the UDID package, exposed here so that the
-bound is a documented, user-controllable argument rather than a hard-coded
-constant.
+propensity score \eqn{\Pr(Z = 1 \mid X)} in particular).
 }
 \examples{
 lsiv_bound_prob(c(-0.1, 0.0005, 0.5, 1.2), tol = 0.01)

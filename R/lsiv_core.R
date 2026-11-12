@@ -22,8 +22,7 @@
 ##      \int h(y) dy   is approximated by   sum_m h(grid[m]) * weights[m].
 ## For a binary or discrete outcome the grid is the observed support and the
 ## weights are all 1 (counting measure); for a continuous outcome the grid is a
-## fine grid and the weights are the mid-point cell widths.  This is exactly the
-## convention used in the replication code of the manuscript (`Y.grid`, `Y.bw`).
+## fine grid and the weights are the mid-point cell widths.
 ## ----------------------------------------------------------------------------
 
 ## ----------------------------------------------------------------------------
@@ -31,11 +30,8 @@
 ##
 ## `src/lsiv_fastpath.cpp` provides compiled equivalents of the contraction of
 ## Theorem 3.2 and of the delta-weighted grid integrals of lsiv_eif().  The R
-## implementations below remain the reference: they are always defined, they
-## are what `tests/testthat/test-rcpp.R` checks the compiled code against, and
-## they are used automatically whenever the compiled code is unavailable --
-## which is the case when the package's R files are sourced directly rather
-## than installed (as `0.SeparableIV.R` does in development mode).
+## implementations below provide the reference calculations and are used
+## automatically when compiled code is unavailable.
 ##
 ## Set `options(LSIV.use_cpp = FALSE)` to force the R path, e.g. to compare the
 ## two implementations.
@@ -139,10 +135,8 @@ lsiv_Psi <- function(g, pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights) {
 #' \eqn{h^{(j+1)} = \tilde\Psi(h^{(j)})} with
 #' \eqn{\tilde\Psi(g) = \Psi(g) / \int \Psi(g)}, which Theorem 3.2 shows
 #' converges to the fixed point from *any* non-negative starting function
-#' integrating to one.  `"closed-form"` is available only for a binary outcome
-#' (`M = 2`), where the fixed-point equation reduces to a scalar quadratic and
-#' can be solved exactly; this reproduces the `g0y1.binary()` routine of the
-#' manuscript's replication code.
+#' integrating to one. \NTC{`"closed-form"` solves the scalar quadratic for a
+#' binary outcome (`M = 2`) exactly.}
 #'
 #' @param pA1_z0,pA1_z1 Numeric vectors of length `n` holding
 #'   \eqn{f(A = 1 \mid Z = 0, X_i)} and \eqn{f(A = 1 \mid Z = 1, X_i)}.
@@ -237,10 +231,7 @@ lsiv_fixed_point <- function(pA1_z0, pA1_z1, fY_z0, fY_z1, grid, weights,
   }
   if (dr_floor > 0) {
     ## Floor and cap the estimated density ratio, then rebuild and renormalise
-    ## the numerator density so that the two stay mutually consistent.  This
-    ## mirrors the `dr.LB` guard in the replication code
-    ## (Simulation_F_Both/1.Sim_Conti_SepIV.R), and is needed because a ratio of
-    ## two independently estimated densities is unstable in the tails.
+    ## the numerator density so that the two stay mutually consistent.
     RY <- pmin(pmax(RY, dr_floor), 1 / dr_floor)
     fY_zM <- RY * fY_zm
     fY_zM <- fY_zM / as.vector(fY_zM %*% weights)
@@ -324,15 +315,13 @@ lsiv_fixed_point <- function(pA1_z0, pA1_z1, fY_z0, fY_z1, grid, weights,
 ##   f(A=1|Z=zm) {R_Y(y_2) - R_Y(y_1)} g_2^2
 ## + [ D(y_2){R_Y(y_2) - R_Y(y_1)} + f(A=1|Z=zm) R_Y(y_1)
 ##     - f(A=1|Z=zM) R_Y(y_2) ] g_2
-## + D(y_2) R_Y(y_1) = 0 ,
-## which is exactly the routine `g0y1.binary()` of the replication code.
+## + D(y_2) R_Y(y_1) = 0.
 lsiv_fixed_point_binary <- function(pA1_zm, pA1_zM, fY_zm, fY_zM, RY, weights) {
   n <- length(pA1_zm)
   w1 <- weights[1L]; w2 <- weights[2L]
   D2 <- (1 - pA1_zm) * fY_zm[, 2L] - (1 - pA1_zM) * fY_zM[, 2L]
   r1 <- RY[, 1L]; r2 <- RY[, 2L]
-  ## Coefficients of  c1 g2^2 + c2 g2 + c3 = 0 .  With unit weights these are
-  ## exactly `eq.c1`, `eq.c2`, `eq.c3` of `g0y1.binary()` in the replication code.
+  ## Coefficients of c1 g2^2 + c2 g2 + c3 = 0.
   c1 <- pA1_zm * w2 * (r2 - r1)
   c2 <- D2 * w2 * (r2 - r1) + pA1_zm * r1 - pA1_zM * r2
   c3 <- D2 * r1
@@ -411,24 +400,8 @@ lsiv_eif <- function(Y, A, Z, grid, weights, delta, gamma_z0, gamma_z1,
   mu_alphay_z0 <- as.vector(m0[, "alphay"]) / denom_z0
   mu_alphay_z1 <- as.vector(m1[, "alphay"]) / denom_z1
 
-  ## beta(z, X) = {f(A=1|z,X)/f(A=0|z,X)} / E{alpha | A = 0, z, X}
-  ##
-  ## This is the `beta.z0.CF <- gamma.z0.CF/denom.z0.CF` of the manuscript's
-  ## replication code (Simulation_F_Both/1.Sim_Conti_SepIV.R, "Calibration:
-  ## beta"), in which `gamma.z0.CF` is the RAW odds Pr(A=1|z,X)/Pr(A=0|z,X).
-  ##
-  ## It is computed here from `pA1_z*` rather than from the `gamma_z*`
-  ## arguments so that the scaling is unambiguous.  Note that it coincides with
-  ## the `gamma_z0`/`gamma_z1` returned by lsiv_fixed_point() (eq. 18), which
-  ## are already divided by `denom` once.  Dividing those by `denom` a SECOND
-  ## time -- which is what this function used to do -- makes the weight
-  ## alpha * beta too small by a factor of `denom` (observed range 1.04-2.31),
-  ## which breaks the identity that f(Y0=y|X) reconstructed from the z = 0 and
-  ## the z = 1 arm must agree: that residual was 9e-04 before this correction
-  ## and is 1e-25 after it.  The estimator stayed consistent either way
-  ## (E[(1-A) * weight * (Y - mu)] = 0 for any scalar multiple of the weight),
-  ## so only the influence function -- and hence every reported standard error
-  ## -- was affected.
+  ## beta(z, X) = {f(A=1|z,X)/f(A=0|z,X)} / E{alpha | A = 0, z, X}.
+  ## This equals the normalized gamma returned by lsiv_fixed_point() (eq. 18).
   beta_z0 <- (pA1_z0 / (1 - pA1_z0)) / denom_z0
   beta_z1 <- (pA1_z1 / (1 - pA1_z1)) / denom_z1
 
